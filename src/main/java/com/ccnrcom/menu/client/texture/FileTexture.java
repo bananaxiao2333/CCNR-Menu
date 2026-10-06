@@ -225,6 +225,21 @@ public final class FileTexture implements AutoCloseable {
         return texture.getPixels();
     }
 
+    /**
+     * 改成**线性过滤**（放大时双线性插值，不开 mipmap）。
+     *
+     * <p>为什么轮播背景必须要它：{@code DynamicTexture} 默认是最近邻采样，而背景每帧都在
+     * 缓慢放大 + 亚像素平移。最近邻会把亚像素位移重新吸附回整像素、并且在放大时把源像素
+     * 成块复制（有的像素占 1 格、有的占 2 格），随着缩放比例缓慢变化，这个块状图案会不断
+     * 跳变——症状就是「画面在动但一直在抖」。线性过滤是这类慢速运镜的前提。
+     *
+     * <p>不开 mipmap 是刻意的：{@code DynamicTexture} 只分配了第 0 级，声明 mipmap 会采样到
+     * 未定义的层级（症状是贴图变黑或出现杂色）。
+     */
+    public void smooth() {
+        texture.setFilter(true, false);
+    }
+
     /** 把当前像素内容上传到 GPU。 */
     public void upload() {
         texture.upload();

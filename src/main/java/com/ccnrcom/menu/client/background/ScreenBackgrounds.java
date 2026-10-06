@@ -8,6 +8,7 @@ import com.ccnrcom.menu.client.ui.MenuTheme;
 import com.ccnrcom.menu.config.BackgroundSpec;
 import com.ccnrcom.menu.config.MenuConfig;
 import com.ccnrcom.menu.config.MenuConfigIO;
+import com.ccnrcom.menu.config.MenuConfigStore;
 import java.nio.file.Path;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -38,12 +39,32 @@ public final class ScreenBackgrounds {
 
     private static final Logger LOGGER = LogManager.getLogger("ccnr_menu");
 
+    /** 指纹多久复查一次（按**绘制帧数**算，不引时钟；约 2 秒）。 */
+    private static final int STAT_INTERVAL_FRAMES = 120;
+
     private static String signature;
     private static BackgroundRenderer renderer;
     private static MarkRenderer mark;
     private static MenuTheme theme;
 
+    /** 上一次算指纹用的配置对象（身份比较：同一个对象就不必再去读一遍磁盘）。 */
+    private static MenuConfig lastConfig;
+
+    /** 距离下一次复查素材 mtime 还有几帧。 */
+    private static int statCountdown;
+
     private ScreenBackgrounds() {}
+
+    /**
+     * 原版界面是否应当由本模组接管背景（自己菜单的判定在 {@link #render} 里，那边直接看 {@code ownMenu}）。
+     *
+     * <p>判定本身在纯类 {@link BackgroundScope} 里；这里只是把它和「当前配置 / 是否在世界里」接上。
+     */
+    public static boolean appliesToVanillaScreen(Screen screen) {
+        MenuConfig config = MenuConfigStore.current().config();
+        boolean inWorld = Minecraft.getInstance().level != null;
+        return BackgroundScope.shouldApply(false, inWorld, config.enabled(), config.applyToAllScreens());
+    }
 
     /**
      * 为一个界面绘制背景（含压暗层与居中标志）。不满足接管条件时**什么都不做**（原版背景照旧）。
@@ -67,8 +88,19 @@ public final class ScreenBackgrounds {
         if (mark != null) mark.render(gfx, width, height, 1f, ownMenu);
     }
 
-    /** 按配置指纹确保实例存在（指纹变了就换掉旧的）。 */
+    /**
+     * 按配置指纹确保实例存在（指纹变了就换掉旧的）。
+     *
+     * <p>这里有两级缓存，都是为了**别在渲染循环里碰磁盘**：① 配置对象身份没变就不重算指纹；
+     * ② 身份没变也每 {@value #STAT_INTERVAL_FRAMES} 帧复查一次素材 mtime
+     * （「作者换了图但参数没变」也必须能被发现，否则看起来就像模组坏了）。
+     * 每帧都去读一遍素材 mtime 是每帧十几次 stat 系统调用，纯属白烧。
+     */
     private static void ensure(MenuConfig config) {
+        if (config == lastConfig && statCountdown-- > 0) return;
+        statCountdown = STAT_INTERVAL_FRAMES;
+        lastConfig = config;
+
         String wanted = signatureOf(config);
         if (wanted.equals(signature)) return;
 
@@ -137,6 +169,8 @@ public final class ScreenBackgrounds {
     public static void release() {
         close();
         signature = null;
+        lastConfig = null;
+        statCountdown = 0;
     }
 
     private static void close() {

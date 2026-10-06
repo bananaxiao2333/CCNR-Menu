@@ -227,56 +227,79 @@ class MenuGeometryTest {
     }
 
     @Test
-    @DisplayName("kenBurns：进度 0 时与原地一模一样，进度 1 时放大且向右偏移")
+    @DisplayName("kenBurnsF：进度 0 时与原地一模一样，进度 1 时放大且向右偏移")
     void kenBurnsMovesForward() {
         // 1920x1080 的图铺到 1920x1080 的屏幕上，cover 之后正好整屏
         MenuGeometry.Rect base = MenuGeometry.fit(Fit.COVER, 1920, 1080, 1920, 1080);
         assertEquals(new MenuGeometry.Rect(0, 0, 1920, 1080), base);
 
-        MenuGeometry.Rect start = MenuGeometry.kenBurns(base, 0.08f, 0.05f, 0f, 0f, 1920, 1080);
-        assertEquals(base, start, "进度 0 时必须与不运镜完全一致（否则切图那一下会跳）");
+        MenuGeometry.FRect start = MenuGeometry.kenBurnsF(base, 0.08f, 0.05f, 0f, 0f, 1920, 1080);
+        assertEquals(new MenuGeometry.FRect(0f, 0f, 1920f, 1080f), start, "进度 0 时必须与不运镜完全一致（否则切图那一下会跳）");
 
-        MenuGeometry.Rect end = MenuGeometry.kenBurns(base, 0.08f, 0.05f, 0f, 1f, 1920, 1080);
+        MenuGeometry.FRect end = MenuGeometry.kenBurnsF(base, 0.08f, 0.05f, 0f, 1f, 1920, 1080);
         assertTrue(end.w() > base.w(), "要放大一点点");
         assertTrue(end.h() > base.h());
         assertTrue(end.x() > base.x(), "要缓慢往右偏移");
     }
 
     @Test
-    @DisplayName("kenBurns：围绕中心放大（左右各让出相同的量），否则画面会往右下角跑")
+    @DisplayName("kenBurnsF：围绕中心放大（左右各让出相同的量），否则画面会往右下角跑")
     void kenBurnsZoomsAroundCenter() {
         MenuGeometry.Rect base = new MenuGeometry.Rect(0, 0, 1000, 500);
-        MenuGeometry.Rect zoomed = MenuGeometry.kenBurns(base, 0.2f, 0f, 0f, 1f, 1000, 500);
-        assertEquals(1200, zoomed.w());
-        assertEquals(600, zoomed.h());
-        assertEquals(-100, zoomed.x(), "左边让出 100");
-        assertEquals(100, zoomed.x2() - base.x2(), "右边也多出 100");
-        assertEquals(-50, zoomed.y());
+        MenuGeometry.FRect zoomed = MenuGeometry.kenBurnsF(base, 0.2f, 0f, 0f, 1f, 1000, 500);
+        assertEquals(1200f, zoomed.w());
+        assertEquals(600f, zoomed.h());
+        assertEquals(-100f, zoomed.x(), "左边让出 100");
+        assertEquals(100f, zoomed.x() + zoomed.w() - (base.x() + base.w()), "右边也多出 100");
+        assertEquals(-50f, zoomed.y());
     }
 
     @Test
-    @DisplayName("kenBurns：偏移按屏幕尺寸的比例算，分辨率变了观感一致")
+    @DisplayName("kenBurnsF：偏移按屏幕尺寸的比例算，分辨率变了观感一致")
     void kenBurnsPanScalesWithScreen() {
-        MenuGeometry.Rect small =
-                MenuGeometry.kenBurns(new MenuGeometry.Rect(0, 0, 320, 240), 0f, 0.1f, 0f, 1f, 320, 240);
-        MenuGeometry.Rect large =
-                MenuGeometry.kenBurns(new MenuGeometry.Rect(0, 0, 1920, 1080), 0f, 0.1f, 0f, 1f, 1920, 1080);
-        assertEquals(32, small.x(), "320 宽的 10%");
-        assertEquals(192, large.x(), "1920 宽的 10%");
+        MenuGeometry.FRect small =
+                MenuGeometry.kenBurnsF(new MenuGeometry.Rect(0, 0, 320, 240), 0f, 0.1f, 0f, 1f, 320, 240);
+        MenuGeometry.FRect large =
+                MenuGeometry.kenBurnsF(new MenuGeometry.Rect(0, 0, 1920, 1080), 0f, 0.1f, 0f, 1f, 1920, 1080);
+        assertEquals(32f, small.x(), "320 宽的 10%");
+        assertEquals(192f, large.x(), "1920 宽的 10%");
     }
 
     @Test
-    @DisplayName("kenBurns：进度越界/NaN 都被收敛（配置写错了也不该画出错位画面）")
+    @DisplayName("kenBurnsF：进度越界/NaN 都被收敛（配置写错了也不该画出错位画面）")
     void kenBurnsClampsProgress() {
         MenuGeometry.Rect base = new MenuGeometry.Rect(0, 0, 100, 100);
         assertEquals(
-                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, 1f, 100, 100),
-                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, 99f, 100, 100),
+                MenuGeometry.kenBurnsF(base, 0.5f, 0f, 0f, 1f, 100, 100),
+                MenuGeometry.kenBurnsF(base, 0.5f, 0f, 0f, 99f, 100, 100),
                 "进度大于 1 按 1 处理");
         assertEquals(
-                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, 0f, 100, 100),
-                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, -5f, 100, 100),
+                MenuGeometry.kenBurnsF(base, 0.5f, 0f, 0f, 0f, 100, 100),
+                MenuGeometry.kenBurnsF(base, 0.5f, 0f, 0f, -5f, 100, 100),
                 "负进度按 0 处理");
-        assertEquals(base, MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, Float.NaN, 100, 100), "NaN 按 0 处理");
+        assertEquals(
+                new MenuGeometry.FRect(0f, 0f, 100f, 100f),
+                MenuGeometry.kenBurnsF(base, 0.5f, 0f, 0f, Float.NaN, 100, 100),
+                "NaN 按 0 处理");
+    }
+
+    @Test
+    @DisplayName("kenBurnsF：默认参数下每帧位移远小于 1 像素 —— 取整会把它变成 11Hz 的抖动")
+    void kenBurnsIsSubPixel() {
+        // 默认参数：9 秒展示、横向偏移屏幕宽的 5%。按 60fps 走一遍整段
+        MenuGeometry.Rect base = new MenuGeometry.Rect(0, 0, 1920, 1080);
+        int frames = 540;
+        float previous = Float.NaN;
+        float maxStep = 0f;
+        float maxFraction = 0f;
+        for (int i = 0; i <= frames; i++) {
+            MenuGeometry.FRect r = MenuGeometry.kenBurnsF(base, 0.08f, 0.05f, 0f, i / (float) frames, 1920, 1080);
+            if (!Float.isNaN(previous)) maxStep = Math.max(maxStep, Math.abs(r.x() - previous));
+            previous = r.x();
+            maxFraction = Math.max(maxFraction, Math.abs(r.x() - Math.round(r.x())));
+        }
+        // 总位移 19.2 像素 / 540 帧 ≈ 0.036 像素每帧：浮点矩形能做到，取整的版本做不到
+        assertTrue(maxStep < 1f, "单帧位移必须小于 1 像素，否则整像素量化就是可见的跳变");
+        assertTrue(maxFraction > 0.1f, "小数部分必须真的被用上（全落回整像素等于没改）");
     }
 }
