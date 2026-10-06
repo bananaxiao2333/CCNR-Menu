@@ -68,15 +68,16 @@ class MenuConfigTest {
         assertTrue(slide.loop(), "轮播默认循环");
         assertEquals(11, config.background().assetFiles().size(), "轮播的素材清单要带上每一张（门禁与诊断都靠它）");
 
-        // 泥土页面右下角的水印标志
+        // 泥土页面正中间的水印标志
         MarkSpec mark = config.mark();
         assertTrue(mark.enabled(), "默认要在泥土页面上画标志");
         assertEquals("logo_wide_mono.png", mark.file(), "用全白单色横版图标");
         assertFalse(mark.onMainMenu(), "主菜单左列里已经有图标了，再叠一个就是两个 logo 打架");
-        assertEquals(Align.RIGHT, mark.align(), "默认挂在右下角：x/y 指的是标志的右/下边缘");
-        assertEquals(VAlign.BOTTOM, mark.valign());
-        assertTrue(mark.x() < 1.0 && mark.x() > 0.9, "留一点右边距（贴边看起来像被裁掉了）");
-        assertTrue(mark.y() < 1.0 && mark.y() > 0.9, "留一点下边距");
+        assertEquals(Align.CENTER, mark.align(), "默认正中（不要显式写 align/valign，那是默认值）");
+        assertEquals(VAlign.MIDDLE, mark.valign());
+        assertEquals(0.5, mark.x(), 0.0001, "横向居中");
+        assertEquals(0.5, mark.y(), 0.0001, "纵向居中");
+        assertEquals(0.3f, mark.opacity(), 0.001f, "30% 不透明：它是水印，不能和前面那列按钮抢注意力");
 
         // 外观：无背景纯文字
         assertEquals(ButtonStyle.TEXT, config.theme().buttonStyle(), "默认按钮是纯文字外观");
@@ -94,6 +95,7 @@ class MenuConfigTest {
         assertTrue(bar != null, "默认在按钮列背后画一条色带");
         assertEquals(0x33000000, bar.color(), "20% 黑：压得住亮背景，又不至于把底图糊掉");
         assertFalse(bar.fullColumnWidth(), "默认色带宽度 = 按钮们实际占据的范围，不是整列宽");
+        assertTrue(bar.padding() > 0, "左右要留白：按钮的宽度就是文字宽度，贴着文字边界像被裁掉了一块");
         MenuElement icon = column.column().children().get(0);
         assertEquals(MenuElement.Type.IMAGE, icon.type(), "图标在按钮之上");
         assertTrue(icon.animatedImage(), "默认图标播放入场动画");
@@ -124,6 +126,20 @@ class MenuConfigTest {
         assertFalse(bar.fullColumnWidth(), "width 不认识 → 用 buttons（作者想要的通常是这个）");
         assertTrue(warnings.stream().anyMatch(w -> w.contains("bar.color")), warnings.toString());
         assertTrue(warnings.stream().anyMatch(w -> w.contains("bar.width")), warnings.toString());
+        assertEquals(MenuElement.DEFAULT_BAR_PADDING, bar.padding(), "不写 padding 就用默认留白");
+
+        List<String> outOfRange = new ArrayList<>();
+        MenuElement.Bar clamped = MenuConfig.parse(
+                        parse("{\"elements\":[{\"type\":\"column\",\"children\":[{\"type\":\"button\","
+                                + "\"text\":\"a\",\"action\":\"quit\"}],"
+                                + "\"bar\":{\"padding\":9999}}]}"),
+                        outOfRange)
+                .elements()
+                .get(0)
+                .column()
+                .bar();
+        assertEquals(MenuElement.MAX_BAR_PADDING, clamped.padding(), "越界的留白收敛到上限而不是画到屏幕外");
+        assertTrue(outOfRange.stream().anyMatch(w -> w.contains("bar.padding")), outOfRange.toString());
     }
 
     @Test

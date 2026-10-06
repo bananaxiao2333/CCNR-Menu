@@ -30,11 +30,9 @@
   "mark": {
     "file": "logo_wide_mono.png",
     "width": 420,
-    "opacity": 1.0,
-    "x": 0.98,
-    "y": 0.95,
-    "align": "right",
-    "valign": "bottom",
+    "opacity": 0.3,
+    "x": 0.5,
+    "y": 0.5,
     "onMainMenu": false
   },
   "theme": {
@@ -61,7 +59,8 @@
       "childAlign": "left",
       "bar": {
         "color": "#33000000",
-        "width": "buttons"
+        "width": "buttons",
+        "padding": 10
       },
       "children": [
         {
