@@ -49,6 +49,13 @@ public final class TitleScreenHook {
         if (!result.config().enabled()) return;
         // 换成自己的屏幕（不是 TitleScreen），因此不会再次触发本事件，不存在递归
         event.setNewScreen(new MenuScreen(result.config()));
-        LOGGER.debug("[CCNR-Menu] 已接管主菜单（背景={}）", result.config().background().kind());
+        // 用 INFO 而不是 DEBUG：排查「装了但没变化」时，第一句要确认的就是「到底接管了没有」，
+        // 而玩家手上只有 latest.log（DEBUG 不进这个文件）
+        LOGGER.info(
+                "[CCNR-Menu] 已接管主菜单（背景={}，按钮={}）",
+                result.config().background().kind(),
+                result.config().vanillaButtons()
+                        ? "原版"
+                        : "自定义 " + result.config().buttonCount() + " 个");
     }
 }

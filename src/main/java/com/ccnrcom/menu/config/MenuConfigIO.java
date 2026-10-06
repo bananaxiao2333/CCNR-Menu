@@ -91,6 +91,8 @@ public final class MenuConfigIO {
         boolean created = false;
         if (!Files.isRegularFile(configFile())) {
             created |= writeFromResource(DEFAULT_RESOURCE, configFile());
+        } else {
+            created |= migrateLegacyDefault(configFile());
         }
         if (!Files.isRegularFile(exampleFile())) {
             created |= writeFromResource(EXAMPLE_RESOURCE, exampleFile());
@@ -99,6 +101,64 @@ public final class MenuConfigIO {
             created |= copyPreset(preset);
         }
         return created;
+    }
+
+    /**
+     * 升级迁移：把**未被修改过的历史默认配置**换成当前默认。
+     *
+     * <p>为什么需要这一步：本模组从不覆盖已存在的配置（作者改过的文件不能被抹掉），
+     * 于是「更新模组版本」时新的默认配置永远进不去——0.2.0 的反应就是
+     * 「装上了但菜单一点变化都没有」，而日志完全正常。判据见 {@link MenuDefaults}：
+     * 只有内容与历史默认**完全一致**才替换，玩家动过一个字符就不碰。
+     *
+     * @return 是否真的替换了
+     */
+    private static boolean migrateLegacyDefault(Path file) {
+        String content;
+        try {
+            content = Files.readString(file, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            LOGGER.warn("[CCNR-Menu] 读取旧配置失败，跳过升级迁移: {} —— {}", file, e.toString());
+            return false;
+        }
+        if (!MenuDefaults.isLegacyUnmodified(content)) return false;
+
+        try {
+            Files.copy(
+                    file,
+                    file.resolveSibling(file.getFileName() + ".bak"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            LOGGER.warn("[CCNR-Menu] 备份旧配置失败，为保证安全不做迁移: {} —— {}", file, e.toString());
+            return false;
+        }
+        boolean ok = writeFromResource(DEFAULT_RESOURCE, file);
+        if (ok) {
+            LOGGER.info("[CCNR-Menu] 检测到【未被修改过的旧版默认配置】，已替换为新版默认（旧文件备份为 {}）", file.getFileName() + ".bak");
+        }
+        return ok;
+    }
+
+    /**
+     * 用内置默认覆盖当前配置（{@code /ccnr_menu reset} 用）。
+     *
+     * <p>为什么需要它：迁移只处理「从未改过」的文件。改过配置的人想要新版默认时，
+     * 不能靠猜他改了哪几行——给他一个**显式**的「恢复出厂」入口，并且先把原文件备份成 {@code .bak}。
+     */
+    public static boolean resetToDefault() {
+        Path file = configFile();
+        if (Files.isRegularFile(file)) {
+            try {
+                Files.copy(
+                        file,
+                        file.resolveSibling(file.getFileName() + ".bak"),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException e) {
+                LOGGER.warn("[CCNR-Menu] 备份当前配置失败，已取消重置: {} —— {}", file, e.toString());
+                return false;
+            }
+        }
+        return writeFromResource(DEFAULT_RESOURCE, file);
     }
 
     /** 把内置素材拷进配置目录（已存在则跳过）。 */

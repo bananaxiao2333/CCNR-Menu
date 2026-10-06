@@ -68,6 +68,20 @@ public final class MenuClientCommand {
                     Minecraft.getInstance().setScreen(new MenuScreen(result.config()));
                     return 1;
                 }))
+                .then(Commands.literal("reset").executes(ctx -> {
+                    // 显式恢复出厂：迁移只处理「从未改过」的文件，改过的人需要这个入口
+                    boolean ok = MenuConfigIO.resetToDefault();
+                    if (!ok) {
+                        reply(ctx, Component.translatable("ccnr_menu.command.reset_failed"));
+                        return 0;
+                    }
+                    MenuConfigIO.LoadResult result = MenuConfigStore.reload();
+                    if (Minecraft.getInstance().screen instanceof MenuScreen) {
+                        Minecraft.getInstance().setScreen(new MenuScreen(result.config()));
+                    }
+                    reply(ctx, Component.translatable("ccnr_menu.command.reset_ok"));
+                    return 1;
+                }))
                 .then(Commands.literal("where").executes(ctx -> {
                     reply(ctx, Component.literal(MenuConfigIO.configDir().toString()));
                     return 1;
