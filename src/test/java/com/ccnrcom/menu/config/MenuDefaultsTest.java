@@ -113,7 +113,13 @@ class MenuDefaultsTest {
 
             List<String> warnings = new ArrayList<>();
             MenuConfig config = MenuConfig.parse(JsonUtil.GSON.fromJson(entry.getValue(), JsonObject.class), warnings);
-            assertTrue(warnings.isEmpty(), version + " 这份历史默认解析出了警告，它不可能真的发布过: " + warnings);
+            for (String warning : warnings) {
+                // 历史默认可能用到**后来被删掉**的功能（0.3.0 那份就用了 0.4.0 移除的 text 背景类型），
+                // 所以这里不能要求「零警告」——那会把历史记录本身判红。
+                // 允许的只有「某个背景类型现在不认识了」这一种；
+                // 其它任何警告都说明这份 JSON 不是我们真的发布过的东西，而是一条凭印象写出来的配置。
+                assertTrue(warning.startsWith("background.type 不认识"), version + " 这份历史默认解析出了意料之外的警告: " + warning);
+            }
             assertTrue(config.buttonCount() > 0 || config.vanillaButtons(), version + " 这份历史默认一个按钮都没有（发布出去等于玩家退不出游戏）");
         }
     }

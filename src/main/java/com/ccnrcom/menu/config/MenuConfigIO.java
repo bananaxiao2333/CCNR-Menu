@@ -61,7 +61,13 @@ public final class MenuConfigIO {
             "logo_wide_white.png",
             "logo_wide_intro_white.png",
             "logo_wide_mono.png",
-            "logo_wide_intro_mono.png");
+            "logo_wide_intro_mono.png",
+            "slides/01.jpg",
+            "slides/02.jpg",
+            "slides/03.jpg",
+            "slides/04.jpg",
+            "slides/05.jpg",
+            "slides/06.jpg");
 
     private static final Logger LOGGER = LogManager.getLogger("ccnr_menu");
 

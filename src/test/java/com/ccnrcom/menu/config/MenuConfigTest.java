@@ -44,7 +44,7 @@ class MenuConfigTest {
     }
 
     @Test
-    @DisplayName("随模组发布的默认配置：左侧竖列（图标在上、按钮在下、左边缘对齐）+ 黑底彩色文字背景 + 纯文字按钮")
+    @DisplayName("随模组发布的默认配置：左侧竖列（图标在上、按钮在下、左边缘对齐）+ 图片轮播背景 + 纯文字按钮 + 泥土页面居中标志")
     void defaultResourceIsClean() {
         List<String> warnings = new ArrayList<>();
         MenuConfig config = MenuConfig.parse(resource("/assets/ccnr_menu/defaults/menu.json"), warnings);
@@ -54,18 +54,29 @@ class MenuConfigTest {
         assertFalse(config.vanillaButtons(), "默认用的是配置出来的按钮");
         assertTrue(config.applyToAllScreens(), "默认把泥土界面也一起换掉（这就是「都替换掉」）");
 
-        // 背景：黑底 + 彩色文字动画（不加载任何素材）
-        assertEquals(BackgroundSpec.Kind.TEXT, config.background().kind(), "默认背景是文字背景");
-        assertFalse(config.background().needsFile(), "文字背景不应该需要素材文件");
-        assertEquals(0xFF000000, config.background().color(), "底色是纯黑");
-        assertEquals(3, config.background().text().segments().size(), "默认三段（装饰符号 [ ] = - +）");
-        assertTrue(config.background().text().totalChars() > 0, "分段里得有字");
-        assertTrue(config.background().text().palette().length >= 2, "彩色文字至少要有两个颜色才谈得上流动");
-        assertFalse(config.background().text().loop(), "默认只写一遍，之后颜色继续流动（循环重写会一直抢注意力）");
+        // 背景：多图轮播，淡入淡出 + 缓慢推近 + 向右偏移
+        assertEquals(BackgroundSpec.Kind.SLIDESHOW, config.background().kind(), "默认背景是图片轮播");
+        assertEquals(6, config.background().slides().size(), "默认六张轮播图");
+        assertFalse(config.background().slides().contains(""), "轮播列表里不该有空项");
+        SlideSpec slide = config.background().slide();
+        assertTrue(slide.fadeMs() > 0, "切换必须是淡入淡出（fadeMs = 0 就是硬切）");
+        assertTrue(slide.fadeMs() < slide.holdMs(), "淡入时长必须短于停留时长，否则没有一张露出过完整画面");
+        assertTrue(slide.zoom() > 0f, "每张图要放大一点点");
+        assertTrue(slide.panX() > 0f, "每张图要缓慢往右偏移");
+        assertTrue(slide.loop(), "轮播默认循环");
+        assertEquals(6, config.background().assetFiles().size(), "轮播的素材清单要带上每一张（门禁与诊断都靠它）");
+
+        // 泥土页面上的居中标志
+        MarkSpec mark = config.mark();
+        assertTrue(mark.enabled(), "默认要在泥土页面上画居中标志");
+        assertEquals("logo_wide_mono.png", mark.file(), "用全白单色横版图标");
+        assertFalse(mark.onMainMenu(), "主菜单左列里已经有图标了，正中间再画一个就是两个 logo 打架");
+        assertEquals(0.5, mark.x(), 0.0001, "横向居中");
+        assertEquals(0.5, mark.y(), 0.0001, "纵向居中");
 
         // 外观：无背景纯文字
         assertEquals(ButtonStyle.TEXT, config.theme().buttonStyle(), "默认按钮是纯文字外观");
-        assertEquals(0, ColorSpec.alpha(config.theme().backdrop()), "背景本来就是黑的，不该再压一层遮罩");
+        assertTrue(ColorSpec.alpha(config.theme().backdrop()) > 0, "照片背景明暗不可控，必须压一层才保证白字读得清");
 
         // 布局：一个左对齐的竖列，列内左对齐，第一个子元素是横版大图标
         assertEquals(1, config.elements().size(), "默认布局就是一个竖列容器");
@@ -77,7 +88,7 @@ class MenuConfigTest {
         MenuElement icon = column.column().children().get(0);
         assertEquals(MenuElement.Type.IMAGE, icon.type(), "图标在按钮之上");
         assertTrue(icon.animatedImage(), "默认图标播放入场动画");
-        assertEquals("logo_wide_intro_mono.png", icon.file(), "默认用全白单色图标（配黑底彩色文字背景）");
+        assertEquals("logo_wide_intro_mono.png", icon.file(), "默认用全白单色图标");
         assertEquals(8, icon.sheet().cols());
         assertEquals(10, icon.sheet().rows(), "80 帧 = 8x10");
         assertEquals(33, icon.sheet().frameMs(), "每帧 33ms ≈ 30fps");
@@ -101,6 +112,8 @@ class MenuConfigTest {
         assertEquals(4, config.buttonCount(), "示例里的按钮个数");
         assertEquals(BackgroundSpec.Kind.IMAGE, config.background().kind(), "示例演示的是静态图背景 + 压暗");
         assertEquals("background.png", config.background().file());
+        assertEquals(ButtonStyle.SOLID, config.theme().buttonStyle(), "示例演示的是有底色的实心按钮");
+        assertTrue(config.mark().enabled(), "示例里也带一个居中标志");
     }
 
     @Test

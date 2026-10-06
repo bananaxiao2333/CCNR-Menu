@@ -99,6 +99,38 @@ public final class TextureDraw {
         }
     }
 
+    /**
+     * 把贴图的 {@code src} 像素区按**调用方算好的**目标矩形画上屏（着色 + 不透明度）。
+     *
+     * <p>存在的理由：{@link #drawFitted} 把「算目标矩形」和「画」绑在一起，
+     * 而轮播背景需要在 fit 的结果上再做「推近 + 偏移」（{@link MenuGeometry#kenBurns}），
+     * 于是必须能自己拿矩形来画。着色/混合/复位的实现仍然只有这一处，
+     * 免得两个绘制入口各自漂移。
+     */
+    public static void drawAt(
+            GuiGraphics gfx,
+            ResourceLocation location,
+            MenuGeometry.Rect src,
+            MenuGeometry.Rect dst,
+            int textureWidth,
+            int textureHeight,
+            int tint,
+            float alpha) {
+        if (location == null || src == null || dst == null || src.w() <= 0 || src.h() <= 0) return;
+        if (dst.w() <= 0 || dst.h() <= 0) return;
+        float a = Math.min(1f, Math.max(0f, alpha)) * ColorSpec.alphaF(tint);
+        if (a <= 0f) return;
+
+        RenderSystem.enableBlend();
+        gfx.setColor(ColorSpec.redF(tint), ColorSpec.greenF(tint), ColorSpec.blueF(tint), a);
+        try {
+            blit(gfx, location, src, dst, textureWidth, textureHeight);
+        } finally {
+            // 必须复位：setColor 是全局状态，忘了复位会让**之后所有**的界面绘制都带上这层颜色
+            gfx.setColor(1f, 1f, 1f, 1f);
+        }
+    }
+
     /** 单次 blit：把贴图的 {@code src} 像素区画进 {@code dst} 屏幕区（元素图片也走这里）。 */
     public static void blit(
             GuiGraphics gfx,

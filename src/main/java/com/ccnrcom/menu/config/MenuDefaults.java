@@ -129,9 +129,113 @@ public final class MenuDefaults {
                   ]
                 }
                 """);
+        // 0.3.0：靠左布局 + 无背景纯文字按钮 + 黑底彩色文字背景（该背景类型已在 0.4.0 移除）
+        map.put(
+                "0.3.0",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": false,
+                  "applyToAllScreens": true,
+                  "background": {
+                    "type": "text",
+                    "color": "#000000",
+                    "text": {
+                      "x": 0.70,
+                      "y": 0.5,
+                      "align": "center",
+                      "valign": "middle",
+                      "scale": 2,
+                      "lineGap": 12,
+                      "charMs": 45,
+                      "stepMs": 90,
+                      "holdMs": 2600,
+                      "loop": false,
+                      "shadow": false,
+                      "palette": ["#4FD1E0", "#7CF7C4", "#FFD166", "#FF8AB8", "#9B8CFF", "#E6EDF3"],
+                      "segments": [
+                        {
+                          "left": "[===[ ",
+                          "text": "CCNR 服务器",
+                          "right": " ]===]",
+                          "offset": 0
+                        },
+                        {
+                          "left": "+--- ",
+                          "text": "生存 · 创造 · 长期运营",
+                          "right": " ---+",
+                          "offset": 2
+                        },
+                        {
+                          "left": "[===[ ",
+                          "text": "play.ccnr.example",
+                          "right": " ]===]",
+                          "offset": 4
+                        }
+                      ]
+                    }
+                  },
+                  "theme": {
+                    "buttonStyle": "text",
+                    "backdrop": "#00000000",
+                    "buttonFill": "#B0121216",
+                    "buttonFillHover": "#D01E1E26",
+                    "buttonBorder": "#FF3C3C46",
+                    "buttonBorderHover": "#FF4FD1E0",
+                    "buttonText": "#FFE6E6EE",
+                    "buttonTextHover": "#FF4FD1E0",
+                    "accent": "#FF4FD1E0",
+                    "labelText": "#FFCFCFD8"
+                  },
+                  "elements": [
+                    {
+                      "type": "column",
+                      "x": 0.04,
+                      "y": 0.5,
+                      "align": "left",
+                      "valign": "middle",
+                      "width": 300,
+                      "gap": 10,
+                      "childAlign": "left",
+                      "children": [
+                        {
+                          "type": "image",
+                          "file": "logo_wide_intro_mono.png",
+                          "width": 300,
+                          "animation": {
+                            "cols": 8,
+                            "rows": 10,
+                            "frameMs": 33,
+                            "loop": false
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "text": "进入服务器",
+                          "action": "screen:multiplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "单人游戏",
+                          "action": "screen:singleplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "设置",
+                          "action": "screen:options"
+                        },
+                        {
+                          "type": "button",
+                          "text": "退出游戏",
+                          "action": "quit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
         return java.util.Collections.unmodifiableMap(map);
     }
-
     /** 是否与某个历史默认配置**结构完全一致**（即玩家从未改过它）。 */
     public static boolean isLegacyUnmodified(String fileContent) {
         if (fileContent == null || fileContent.isBlank()) return false;

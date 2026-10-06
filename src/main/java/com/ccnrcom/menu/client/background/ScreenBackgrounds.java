@@ -40,12 +40,13 @@ public final class ScreenBackgrounds {
 
     private static String signature;
     private static BackgroundRenderer renderer;
+    private static MarkRenderer mark;
     private static MenuTheme theme;
 
     private ScreenBackgrounds() {}
 
     /**
-     * 为一个界面绘制背景（含压暗层）。不满足接管条件时**什么都不做**（原版背景照旧）。
+     * 为一个界面绘制背景（含压暗层与居中标志）。不满足接管条件时**什么都不做**（原版背景照旧）。
      *
      * @param config 当前生效配置（调用方应传 {@code MenuConfigStore.current()}，
      *     这样两个绘制点用的是同一份，不会来回触发重建）
@@ -60,9 +61,10 @@ public final class ScreenBackgrounds {
         if (width <= 0 || height <= 0) return;
 
         ensure(config);
-        if (renderer == null) return;
-        renderer.render(gfx, width, height, partialTick, 1f);
+        if (renderer != null) renderer.render(gfx, width, height, partialTick, 1f);
         if (theme != null) theme.drawBackdrop(gfx, width, height, 1f);
+        // 标志画在压暗层**之上**：一个白色 logo 被压成灰的，看起来就像没加载出来
+        if (mark != null) mark.render(gfx, width, height, 1f, ownMenu);
     }
 
     /** 按配置指纹确保实例存在（指纹变了就换掉旧的）。 */
@@ -74,19 +76,20 @@ public final class ScreenBackgrounds {
         signature = wanted;
         theme = new MenuTheme(config.theme());
         renderer = BackgroundFactory.create(config.background());
+        mark = new MarkRenderer(config.mark());
         LOGGER.debug("[CCNR-Menu] 背景已重建（指纹 {}）: {}", wanted, config.background().kind());
     }
 
     /**
-     * 背景指纹：所有影响画面的参数 + 素材文件的修改时间 + **配色**。
+     * 背景指纹：所有影响画面的参数 + 素材文件的修改时间 + **配色** + **居中标志**。
      *
      * <p>带上修改时间是为了「作者换了图但参数没变」这种情况——只看参数的话，
      * 玩家会以为模组坏了（改了文件却毫无反应）。
      *
      * <p>带上配色是因为压暗层（{@code theme.backdrop}）也由这个实例持有：
      * 只改配色不改背景时，指纹不变就不会重建，改了 {@code theme} 却看不到变化。
-     * {@link MenuConfig#theme()} 与 {@link BackgroundSpec#text()} 都是纯数据
-     * （int + 枚举 + 字符串），{@code signature()} 里刻意不放过任何数组字段。
+     * {@link MenuConfig#theme()} 与 {@link MenuConfig#mark()} 都是纯数据（int + 枚举 + 字符串），
+     * 不会出现「同一个配置两次指纹不同」的身份哈希问题。
      */
     private static String signatureOf(MenuConfig config) {
         BackgroundSpec spec = config.background();
@@ -110,16 +113,21 @@ public final class ScreenBackgrounds {
                 .append(spec.sheet().speed())
                 .append(spec.sheet().loop() ? 'L' : 'O')
                 .append('|')
-                .append(spec.text().signature())
+                .append(spec.slide())
                 .append('|')
                 .append(config.theme())
+                .append('|')
+                .append(config.mark())
                 .append('|');
-        if (spec.needsFile()) {
+        for (String asset : spec.assetFiles()) {
             try {
-                Path file = MenuConfigIO.resolveAsset(spec.file());
-                sb.append(file).append('@').append(MenuConfigIO.lastModified(file));
+                Path file = MenuConfigIO.resolveAsset(asset);
+                sb.append(file)
+                        .append('@')
+                        .append(MenuConfigIO.lastModified(file))
+                        .append(';');
             } catch (IllegalArgumentException e) {
-                sb.append("bad:").append(spec.file());
+                sb.append("bad:").append(asset).append(';');
             }
         }
         return sb.toString();
@@ -135,6 +143,10 @@ public final class ScreenBackgrounds {
         if (renderer != null) {
             renderer.close();
             renderer = null;
+        }
+        if (mark != null) {
+            mark.close();
+            mark = null;
         }
         theme = null;
     }

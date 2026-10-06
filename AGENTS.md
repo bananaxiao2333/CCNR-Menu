@@ -45,7 +45,8 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 - **无任何外部模组依赖**（不引用 CCNR-RP / CCNR-PM / CCNR-Com，也不依赖 MCEF）。
   动画 GIF 用 JDK 自带的 `ImageIO`；精灵图走原版贴图管线。
 - 纯类（可直接 JUnit 测）：`ui` 包全部、`gif` 包全部、`config` 的
-  `MenuConfig` / `BackgroundSpec` / `TextSpec` / `MenuElement` / `MenuAction` / `MenuThemeSpec` / `MenuDefaults`。
+  `MenuConfig` / `BackgroundSpec` / `SlideSpec` / `MarkSpec` / `MenuElement` / `MenuAction` /
+  `MenuThemeSpec` / `MenuDefaults`。
 
 ## 开发纪律（完整版见 docs/01）
 
@@ -102,11 +103,20 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
   从 CCNR 图标的 SVG 渲染而来（需要 Chrome + python3，不需要 PIL；162 次无头 Chrome 启动，
   跑一轮约 6~10 分钟，放后台跑）。
   改了生成脚本就要重跑并提交产物，`PresetAssetsTest` 会把「配置引用」与「磁盘文件」双向对齐。
-- **文字背景（`type: "text"`）只画文字、不碰贴图**：动画数学全在纯类 `ui/TextWave`
-  （色带 `palette[(下标+时间/stepMs) mod n]` + 逐字出现的时刻表），
-  渲染在 `client/background/TextBackground`。两个约束不能破：
-  ① **每行的 pose 只 push 一次**（缩放整行共享，逐字形 push/pop 会让每帧多几百次矩阵操作）；
-  ② **字符跨行连续计数**（每行各自从头开始的话，多行会看起来「各动各的」而不是一整块）。
+- **轮播背景（`type: "slideshow"`）的时刻表在纯类 `ui/SlideTimeline`，运镜几何在
+  `MenuGeometry.kenBurns`**。三条不能破的约束：
+  ① **周期边界上进度必须接得上**（`incomingProgress` 在淡入末尾 == 下一张成为主角时的
+  `progress`），否则换图那一帧画面会猛地缩一下——`SlideTimelineTest` 专门守着这一条；
+  ② **只保留「当前 + 下一张」两张贴图**，切换完成后立刻释放其余（6 张 1080p 贴图 = 50MB 显存）；
+  ③ **下一张要提前一个周期异步解码**，否则解码那几十毫秒正好落在切图那一帧上，肉眼可见。
+  线程边界与 GIF 一致：工作线程只调 `FileTexture.decodeFile`（纯计算），
+  `FileTexture.fromImage` 必须回渲染线程。
+- **`FileTexture` 的所有权约定**：`fromImage` **成功时**接管 `NativeImage`，
+  **失败时**仍归调用方（调用方负责 `close()`）。写成这样是为了让失败路径只有一处收尾，
+  不会出现「两处都关一次」或「两处都没关」。改这里前先看 `load` 的实现。
+- **`mark` 画在压暗层之上、原版控件之下**（`ScreenBackgrounds.render` 的顺序是
+  背景 → 压暗层 → 标志）：画在压暗层下面会被压成灰的，跟没加载出来一样；
+  画在原版控件上面就会盖住设置页面的选项列表。
 - **`theme.buttonStyle: "text"` 下按钮不写 `width` 时宽度贴着文字**（`MenuScreen.buttonWidth`）：
   纯文字按钮的热区看不见，留 200 宽的隐形矩形会让鼠标停在文字右边也变色。
   另外 `text` 外观的**焦点提示是文字下划线**——「焦点与悬停必须用两个视觉通道」这条纪律
@@ -114,10 +124,19 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 - **`MenuDefaults.LEGACY_DEFAULTS` 是「版本 → 默认配置原文」的映射**，不是一份随便写的清单：
   每个键都要能在 CHANGELOG 里查到那个版本（`MenuDefaultsTest` 会核对）。
   新增条目时把**当时那份文件原样**贴进来，不要顺手美化——它是给迁移代码比对用的指纹。
+  历史默认里出现「现在已删除的类型/字段」是正常的（0.3.0 那份就用了 0.4.0 移除的 `text` 背景），
+  所以门禁只允许这一类警告，其余一律判红。往文本块里贴 JSON 时**缩进要对齐到 16 空格**，
+  否则 javac 会报 `trailing white space will be removed`。
 - **`MenuConfigIO.PRESET_FILES` 是发布的素材清单**：新素材必须同时出现在清单与资源目录里，
-  否则玩家拿不到（或首次启动就报缺失）。
-- **背景指纹（`ScreenBackgrounds.signatureOf`）必须覆盖所有影响画面的输入**：背景参数、
-  素材 mtime、`config.theme()`（压暗层跟着它走）、以及 `TextSpec.signature()`。
-  数组字段一律**手写字符串化**，别用 record 的 `toString()`——数组的 `toString` 是身份哈希，
-  同一个配置重建两次会得到不同的指纹，症状是「背景被反复重建」。
+  否则玩家拿不到（或首次启动就报缺失）。它可以含子目录（`slides/01.jpg`），
+  清单与磁盘的比对是**递归**的（`filesOnDisk` 用相对路径）。
+- **轮播素材是压过的，不是原图**：`~/Downloads/Image_*.png` 由生成脚本用 `sips` 压成
+  1920 宽的 JPEG（六张 20MB → 1.6MB）。只换照片时跑 `--only-slides`，
+  不要重跑整条脚本（162 次无头 Chrome 截图，6~10 分钟）。
+- **背景指纹（`ScreenBackgrounds.signatureOf`）必须覆盖所有影响画面的输入**：背景参数
+  （含 `slides` 与 `SlideSpec`）、**每一个**素材文件的 mtime（走 `assetFiles()`，轮播要逐张带上）、
+  `config.theme()`（压暗层跟着它走）、以及 `config.mark()`（标志的贴图归同一个实例持有）。
+  漏字段的症状是「改了配置却不变」；`SlideSpec` / `MarkSpec` 都是纯数据（int/枚举/字符串），
+  直接 `append` 它们安全，但**自己写的数组字段不要用 `toString()`**——
+  数组的 `toString` 是身份哈希，同一个配置重建两次会得到不同的指纹。
 - **不要改动 CCNR-RP / CCNR-PM / CCNR-Com**：所有变更限本仓库。

@@ -5,6 +5,7 @@
   /Users/bananaxiao/Documents/MirageV/CCNR图标/
     ├── CCNR图标_H-IMGnTXT横版图标文字_动画版.svg   ← 横版图标 + 入场动画（CSS @keyframes）
     └── CCNR背景.png                                ← 1920x1080 背景
+  ~/Downloads/Image_*.png                           ← 轮播用的照片（可选，见下）
 
 产出（两套配色）：
   logo_wide_white.png        横版图标静态图（浅色图形 + 品牌青描边，配深色背景）
@@ -12,10 +13,17 @@
   logo_wide_mono.png         横版图标静态图（**全白单色**）
   logo_wide_intro_mono.png   入场动画精灵图（全白单色，同上网格）
   background.png             背景图（原样拷贝）
+  slides/01.jpg …            轮播图（压到 1920 宽、JPEG，见下）
 
 `mono` 是什么：把 SVG 里的两个主题变量 `--ccnr-ink` 与 `--ccnr-accent` **同时覆写成 #FFFFFF**，
-于是整枚图标只剩一种颜色，只有透明度在塑形。它配「纯黑背景 + 彩色文字」那套默认菜单——
-背景已经足够花，图标再带自己的强调色就会互相抢戏。
+于是整枚图标只剩一种颜色，只有透明度在塑形。
+
+轮播图为什么要压：原始 PNG 是 1920x1009 / 2560x1440 的照片，单张 3~5MB、六张共 20MB。
+压成 1920 宽的 JPEG（质量 82）后单张 300~500KB，画质在菜单背景上看不出差别，
+而 jar 从 25MB 降到 5MB 左右。**必须用 macOS 自带的 `sips`**（脚本本来就已经是 macOS-only：
+无头 Chrome 的路径是写死的）。
+轮播图是可选的：`SLIDE_SRC_DIR` 里没有匹配文件时脚本会跳过这一步并说明
+（素材仍在，只是本机没有源图）。
 
 帧率：80 帧 / 2.6s ≈ 30fps。此前是 32 帧 ≈ 12.3fps，入场那几下快动作（pop/draw）能看出顿。
 网格受贴图边长 4096 限制：每帧 512 宽 → 最多 8 列；行数取 10 行 = 4096x1710（约 28MB 显存）。
@@ -24,8 +32,11 @@
   Minecraft 不认识 SVG。动画是 CSS @keyframes，只能在浏览器里跑。所以把动画
   **预渲染成精灵图**——运行时只是一张 PNG + 换 UV，零解析、零依赖（见 docs/02）。
 
-依赖：Google Chrome（headless 截图）+ python3 标准库。**不需要 PIL**（自带 PNG 读写）。
-用法：python3 scripts/make-icon-presets.py
+依赖：Google Chrome（headless 截图）+ python3 标准库 + macOS `sips`（只用于压缩轮播图）。
+**不需要 PIL**（自带 PNG 读写）。
+用法：
+  python3 scripts/make-icon-presets.py                # 全部重做（162 次无头 Chrome 启动，约 6~10 分钟）
+  python3 scripts/make-icon-presets.py --only-slides  # 只重做轮播图（换照片时用这条，几秒钟）
 """
 
 import io
@@ -39,6 +50,11 @@ import zlib
 
 HOME = os.path.expanduser("~")
 SRC = os.environ.get("CCNR_ICON_DIR", os.path.join(HOME, "Documents/MirageV/CCNR图标"))
+SLIDE_SRC = os.environ.get("CCNR_SLIDE_DIR", os.path.join(HOME, "Downloads"))
+SLIDE_PREFIX = "Image_"
+SLIDE_MAX_WIDTH = 1920
+SLIDE_QUALITY = 82
+SIPS = "/usr/bin/sips"
 MODULE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(MODULE, "src/main/resources/assets/ccnr_menu/presets")
 TMP = os.path.join(MODULE, "build/icon-presets")
@@ -249,6 +265,9 @@ def inject_mono_rule(svg):
 
 
 def main():
+    if "--only-slides" in sys.argv:
+        render_slides()
+        return
     if not os.path.isfile(CHROME):
         sys.exit(f"找不到 Chrome：{CHROME}（渲染 SVG 需要它）")
     anim_path = os.path.join(SRC, ANIMATED_SVG)
@@ -293,7 +312,50 @@ def main():
     shutil.copyfile(bg_path, os.path.join(OUT, "background.png"))
     print("  wrote presets/background.png  (拷贝 %s)" % BACKGROUND_PNG)
 
+    # 4) 轮播图：压到 1920 宽 + JPEG
+    render_slides()
+
     print("\n完成。模组首次启动会把这些文件拷进 config/ccnr_menu/（已存在则不覆盖）。")
+
+
+def render_slides():
+    """把 ~/Downloads/Image_*.png 压成 1920 宽的 JPEG 放进 presets/slides/。"""
+    if not os.path.isdir(SLIDE_SRC):
+        print(f"\n跳过轮播图：源目录不存在 {SLIDE_SRC}（可用 CCNR_SLIDE_DIR 指定）")
+        return
+    sources = sorted(
+        os.path.join(SLIDE_SRC, n)
+        for n in os.listdir(SLIDE_SRC)
+        if n.startswith(SLIDE_PREFIX) and n.lower().endswith(".png")
+    )
+    if not sources:
+        print(f"\n跳过轮播图：{SLIDE_SRC} 里没有 {SLIDE_PREFIX}*.png")
+        return
+    if not os.path.isfile(SIPS):
+        sys.exit(f"找不到 sips：{SIPS}（压缩轮播图需要 macOS 自带的 sips）")
+
+    target_dir = os.path.join(OUT, "slides")
+    os.makedirs(target_dir, exist_ok=True)
+
+    # 先删掉上一次的产物：源图变少时，残留的旧编号会被 PresetAssetsTest 判成「生成了却没进清单」
+    for name in os.listdir(target_dir):
+        if name.endswith(".jpg"):
+            os.remove(os.path.join(target_dir, name))
+
+    print(f"渲染轮播图 {len(sources)} 张（压到 {SLIDE_MAX_WIDTH} 宽，JPEG 质量 {SLIDE_QUALITY}）...")
+    total = 0
+    for i, source in enumerate(sources, start=1):
+        target = os.path.join(target_dir, f"{i:02d}.jpg")
+        proc = subprocess.run(
+            [SIPS, "-Z", str(SLIDE_MAX_WIDTH), "-s", "format", "jpeg",
+             "-s", "formatOptions", str(SLIDE_QUALITY), source, "--out", target],
+            capture_output=True)
+        if proc.returncode != 0 or not os.path.isfile(target):
+            sys.exit(f"sips 转换失败：{source}\n{proc.stderr.decode('utf-8', 'replace')}")
+        size = os.path.getsize(target)
+        total += size
+        print(f"  slides/{i:02d}.jpg  {size / 1024:.0f}KB  源={os.path.basename(source)}")
+    print(f"  合计 {total / 1024 / 1024:.1f}MB")
 
 
 if __name__ == "__main__":

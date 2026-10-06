@@ -174,6 +174,32 @@ public final class MenuGeometry {
         return new Rect(u, v, frameW, frameH);
     }
 
+    /**
+     * 在 {@link #fit} 算出的目标矩形上做「缓慢推近 + 缓慢偏移」（轮播背景的运镜）。
+     *
+     * <p>做法是围绕**中心**放大（否则画面会往右下角跑），再叠加一点位移。
+     * 偏移量按屏幕尺寸的分数算而不是按图片像素算：这样同一份配置在 1080p 与 1440p 上
+     * 观感一致——作者调的是「大概移动屏幕宽度的 5%」，不是一个跟分辨率绑死的像素数。
+     *
+     * @param base {@link #fit} 的结果（未运镜时的目标矩形）
+     * @param zoom 放大比例（{@code 0.08} = 1.08 倍）
+     * @param panX 向右偏移的比例（相对屏幕宽）
+     * @param panY 向下偏移的比例（相对屏幕高）
+     * @param progress 这张图自己的进度 0..1（0 = 刚出现，1 = 该切走了）
+     */
+    public static Rect kenBurns(
+            Rect base, float zoom, float panX, float panY, float progress, int screenW, int screenH) {
+        if (base == null) return new Rect(0, 0, 0, 0);
+        float p = Float.isNaN(progress) ? 0f : Math.min(1f, Math.max(0f, progress));
+        float factor = 1f + Math.max(0f, zoom) * p;
+        int w = Math.max(1, Math.round(base.w() * factor));
+        int h = Math.max(1, Math.round(base.h() * factor));
+        // 围绕中心放大：多出来的部分两边各分一半，画面中心才不会跑
+        int dx = -(w - base.w()) / 2 + Math.round(panX * screenW * p);
+        int dy = -(h - base.h()) / 2 + Math.round(panY * screenH * p);
+        return new Rect(base.x() + dx, base.y() + dy, w, h);
+    }
+
     /** 平铺模式需要的重复次数（含不完整的那一次）。 */
     public static int tileCount(int screenLen, int tileLen) {
         if (tileLen <= 0) return 1;
