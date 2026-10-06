@@ -14,6 +14,7 @@ import com.ccnrcom.menu.config.MenuConfig;
 import com.ccnrcom.menu.config.MenuConfigIO;
 import com.ccnrcom.menu.config.MenuConfigStore;
 import com.ccnrcom.menu.config.MenuElement;
+import com.ccnrcom.menu.ui.ButtonStyle;
 import com.ccnrcom.menu.ui.FrameClock;
 import com.ccnrcom.menu.ui.MenuGeometry;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -58,6 +59,9 @@ public final class MenuScreen extends Screen {
 
     /** 原版按钮的行距。 */
     private static final int VANILLA_ROW_HEIGHT = 24;
+
+    /** 纯文字按钮贴着文字时留的一点左右余量（0 会让热区正好等于字形宽度，太窄）。 */
+    private static final int TEXT_BUTTON_PADDING = 4;
 
     private static final Logger LOGGER = LogManager.getLogger("ccnr_menu");
 
@@ -118,7 +122,7 @@ public final class MenuScreen extends Screen {
 
     private MenuGeometry.Size measure(MenuElement element) {
         return switch (element.type()) {
-            case BUTTON -> new MenuGeometry.Size(element.buttonWidth(), element.buttonHeight());
+            case BUTTON -> new MenuGeometry.Size(buttonWidth(element), element.buttonHeight());
             case LABEL -> measureLabel(element);
             case IMAGE -> measureImage(element);
             case COLUMN -> {
@@ -126,6 +130,22 @@ public final class MenuScreen extends Screen {
                 yield new MenuGeometry.Size(stack.width(), stack.height());
             }
         };
+    }
+
+    /**
+     * 按钮宽度：写了就用写的，没写则按外观决定。
+     *
+     * <p>纯文字按钮（{@code theme.buttonStyle: "text"}）没写宽度时**贴着文字**。
+     * 为什么这里必须跟着外观走：纯文字按钮在屏幕上只有一个点击热区是看不见的，
+     * 若还给它 200 宽的隐形矩形，鼠标停在文字右边两厘米的空白上文字也会变色——
+     * 玩家看到的是「这按钮坏了」。实心底色按钮没有这个问题（底色本身就是热区的提示）。
+     */
+    private int buttonWidth(MenuElement element) {
+        if (element.width() != MenuElement.AUTO) return element.width();
+        if (theme.buttonStyle() == ButtonStyle.TEXT) {
+            return font.width(text(element)) + TEXT_BUTTON_PADDING;
+        }
+        return element.buttonWidth();
     }
 
     private MenuGeometry.Size measureLabel(MenuElement element) {

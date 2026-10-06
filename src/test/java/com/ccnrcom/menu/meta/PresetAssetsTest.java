@@ -4,6 +4,7 @@
  */
 package com.ccnrcom.menu.meta;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -121,8 +122,10 @@ class PresetAssetsTest {
             MenuElement icon = config.elements().get(0).column().children().get(0);
             assertTrue(icon.animatedImage(), resource + " 的图标应当是序列帧动画");
             assertTrue(
-                    icon.sheet().cols() == 8 && icon.sheet().rows() == 4,
-                    resource + " 的网格应为 8x4（由 scripts/make-icon-presets.py 产出）");
+                    icon.sheet().cols() == 8 && icon.sheet().rows() == 10,
+                    resource + " 的网格应为 8x10（由 scripts/make-icon-presets.py 产出）");
+            assertEquals(80, icon.sheet().frameCount(), resource + " 应当用满 80 帧");
+            assertTrue(icon.sheet().frameMs() <= 34, resource + " 每帧时长应当对应约 30fps");
             assertTrue(icon.width() > 0, "图标必须给宽度（高度按帧比例自动算）");
         }
     }

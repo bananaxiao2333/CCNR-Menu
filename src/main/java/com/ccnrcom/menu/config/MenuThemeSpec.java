@@ -4,6 +4,7 @@
  */
 package com.ccnrcom.menu.config;
 
+import com.ccnrcom.menu.ui.ButtonStyle;
 import com.ccnrcom.menu.ui.ColorSpec;
 import com.ccnrcom.menu.util.JsonUtil;
 import com.google.gson.JsonObject;
@@ -25,6 +26,7 @@ import java.util.List;
  * @param buttonTextHover 按钮悬停文字
  * @param accent 强调色（按钮左侧竖条）
  * @param labelText 标题/文字元素颜色
+ * @param buttonStyle 按钮外观：{@code solid} 有底色，{@code text} 无背景纯文字（见 {@link ButtonStyle}）
  */
 public record MenuThemeSpec(
         int backdrop,
@@ -35,16 +37,29 @@ public record MenuThemeSpec(
         int buttonText,
         int buttonTextHover,
         int accent,
-        int labelText) {
+        int labelText,
+        ButtonStyle buttonStyle) {
 
     /**
      * 默认配色：深色半透明 + **CCNR 图标自带的品牌青**（{@code #4FD1E0}）。
      *
      * <p>强调色取自图标动画版里的 {@code theme-dark} 变体（{@code --ccnr-accent: #4FD1E0}），
      * 这样菜单按钮的强调条与图标是同一套色，不需要作者自己去比对色值。
+     *
+     * <p>默认是 {@link ButtonStyle#SOLID}：**默认值要能配任何背景**。
+     * 纯文字按钮要求背景自带足够对比度，那是一个只有作者知道的约束，不能当成默认。
      */
     public static final MenuThemeSpec DEFAULT = new MenuThemeSpec(
-            0x66000000, 0xB0121216, 0xD01E1E26, 0xFF3C3C46, 0xFF4FD1E0, 0xFFE6E6EE, 0xFFFFFFFF, 0xFF4FD1E0, 0xFFCFCFD8);
+            0x66000000,
+            0xB0121216,
+            0xD01E1E26,
+            0xFF3C3C46,
+            0xFF4FD1E0,
+            0xFFE6E6EE,
+            0xFFFFFFFF,
+            0xFF4FD1E0,
+            0xFFCFCFD8,
+            ButtonStyle.SOLID);
 
     /** 从 {@code theme} 对象解析；缺失/非法字段用默认值并记警告。 */
     public static MenuThemeSpec parse(JsonObject root, List<String> warnings) {
@@ -52,6 +67,16 @@ public record MenuThemeSpec(
             return DEFAULT;
         }
         JsonObject o = root.getAsJsonObject("theme");
+        ButtonStyle style = DEFAULT.buttonStyle();
+        String rawStyle = JsonUtil.str(o, "buttonStyle", null);
+        if (rawStyle != null) {
+            ButtonStyle parsed = ButtonStyle.parse(rawStyle);
+            if (parsed == null) {
+                warnings.add("theme.buttonStyle 不认识: '" + rawStyle + "'（可用 " + ButtonStyle.names() + "）→ 已用 solid");
+            } else {
+                style = parsed;
+            }
+        }
         return new MenuThemeSpec(
                 color(o, "backdrop", DEFAULT.backdrop(), warnings),
                 color(o, "buttonFill", DEFAULT.buttonFill(), warnings),
@@ -61,7 +86,8 @@ public record MenuThemeSpec(
                 color(o, "buttonText", DEFAULT.buttonText(), warnings),
                 color(o, "buttonTextHover", DEFAULT.buttonTextHover(), warnings),
                 color(o, "accent", DEFAULT.accent(), warnings),
-                color(o, "labelText", DEFAULT.labelText(), warnings));
+                color(o, "labelText", DEFAULT.labelText(), warnings),
+                style);
     }
 
     private static int color(JsonObject o, String key, int def, List<String> warnings) {

@@ -10,6 +10,7 @@
     "opacity": 1.0
   },
   "theme": {
+    "buttonStyle": "solid",
     "backdrop": "#66000000",
     "buttonFill": "#B0121216",
     "buttonFillHover": "#D01E1E26",
@@ -23,13 +24,13 @@
   "elements": [
     {
       "type": "column",
-      "x": 0.955,
+      "x": 0.04,
       "y": 0.5,
-      "align": "right",
+      "align": "left",
       "valign": "middle",
       "width": 300,
       "gap": 6,
-      "childAlign": "right",
+      "childAlign": "left",
       "children": [
         {
           "type": "image",
@@ -37,8 +38,8 @@
           "width": 300,
           "animation": {
             "cols": 8,
-            "rows": 4,
-            "frameMs": 81,
+            "rows": 10,
+            "frameMs": 33,
             "loop": false
           }
         },

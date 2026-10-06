@@ -20,11 +20,13 @@ import java.util.Locale;
  * @param fit 铺屏方式
  * @param tint 着色（与原图相乘；白色 = 原色，{@code #808080} = 压暗一半）
  * @param opacity 不透明度 0..1
- * @param color 纯色背景的颜色（仅 {@code COLOR} 使用）
+ * @param color 纯色背景的颜色（{@code COLOR} 用它；{@code TEXT} 用它当**底色**，默认纯黑）
  * @param sheet 序列帧参数（{@code SHEET} 用全部字段；{@code GIF} 只用 {@code loop}/{@code speed}，
  *     帧时长由 GIF 自身的 {@code delayTime} 决定）
+ * @param text 文字背景的内容与动画（仅 {@code TEXT} 使用）
  */
-public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float opacity, int color, SpriteSheet sheet) {
+public record BackgroundSpec(
+        Kind kind, String file, Fit fit, int tint, float opacity, int color, SpriteSheet sheet, TextSpec text) {
 
     /** 背景类型。 */
     public enum Kind {
@@ -39,7 +41,12 @@ public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float op
         /** 纯色。 */
         COLOR,
         /** 不画背景（黑屏，适合配 GLSL/外部录制场景）。 */
-        NONE;
+        NONE,
+        /**
+         * 黑底彩色文字：不加载任何素材，直接在纯色底上画分段装饰文字并让它动起来
+         * （见 {@link TextSpec}）。一张几 MB 的背景图，内容常常就是几行字。
+         */
+        TEXT;
 
         /** 这一种背景是否需要外部素材文件。 */
         public boolean needsFile() {
@@ -56,14 +63,15 @@ public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float op
                 case "gif", "animated" -> GIF;
                 case "color", "colour", "solid" -> COLOR;
                 case "none", "empty", "blank" -> NONE;
+                case "text", "ascii", "banner", "words" -> TEXT;
                 default -> null;
             };
         }
     }
 
     /** 原版全景图；不透明度与着色都是中性值。 */
-    public static final BackgroundSpec DEFAULT =
-            new BackgroundSpec(Kind.VANILLA, "", Fit.COVER, ColorSpec.WHITE, 1f, 0xFF101014, SpriteSheet.DEFAULT);
+    public static final BackgroundSpec DEFAULT = new BackgroundSpec(
+            Kind.VANILLA, "", Fit.COVER, ColorSpec.WHITE, 1f, 0xFF101014, SpriteSheet.DEFAULT, TextSpec.EMPTY);
 
     public BackgroundSpec {
         kind = kind == null ? Kind.VANILLA : kind;
@@ -71,6 +79,7 @@ public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float op
         fit = fit == null ? Fit.COVER : fit;
         opacity = Math.min(1f, Math.max(0f, opacity));
         sheet = sheet == null ? SpriteSheet.DEFAULT : sheet;
+        text = text == null ? TextSpec.EMPTY : text;
     }
 
     /** 是否需要一个外部素材文件。 */
@@ -80,7 +89,7 @@ public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float op
 
     /** 是否逐帧动画（需要计时器）。 */
     public boolean animated() {
-        return kind == Kind.SHEET || kind == Kind.GIF;
+        return kind == Kind.SHEET || kind == Kind.GIF || kind == Kind.TEXT;
     }
 
     /** 从配置解析；缺失返回 {@link #DEFAULT}。 */
@@ -92,7 +101,8 @@ public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float op
         String rawType = JsonUtil.str(o, "type", "vanilla");
         Kind kind = Kind.parse(rawType);
         if (kind == null) {
-            warnings.add("background.type 不认识: '" + rawType + "'（可用 vanilla/image/sheet/gif/color/none）→ 已退回原版全景图");
+            warnings.add(
+                    "background.type 不认识: '" + rawType + "'（可用 vanilla/image/sheet/gif/color/none/text）→ 已退回原版全景图");
             kind = Kind.VANILLA;
         }
         String file = JsonUtil.str(o, "file", "").trim();
@@ -121,15 +131,22 @@ public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float op
 
         float opacity = (float) clamp(JsonUtil.dbl(o, "opacity", 1.0), 0.0, 1.0);
 
-        int color = DEFAULT.color();
+        // 文字背景的底色默认是**纯黑**（不是 COLOR 那个深灰）：黑底 + 彩色文字才是它的设计意图
+        int color = kind == Kind.TEXT ? 0xFF000000 : DEFAULT.color();
         String rawColor = JsonUtil.str(o, "color", null);
         if (rawColor != null) {
             Integer parsed = ColorSpec.parse(rawColor);
             if (parsed == null) {
-                warnings.add("background.color 不是合法颜色: '" + rawColor + "' → 已用深灰");
+                warnings.add("background.color 不是合法颜色: '" + rawColor + "' → 已用" + (kind == Kind.TEXT ? "纯黑" : "深灰"));
             } else {
                 color = parsed;
             }
+        }
+
+        TextSpec text = TextSpec.parse(o, warnings);
+        if (kind == Kind.TEXT && text.segments().isEmpty()) {
+            warnings.add(
+                    "background.type 是 text，但 background.text.segments 是空的 → 屏幕上只会剩一块纯色底；" + "分段写法见 menu.example.json");
         }
 
         // 序列帧参数与图片元素共用同一份解析（字段名/校验只有一处，见 AnimationParser）
@@ -146,7 +163,7 @@ public record BackgroundSpec(Kind kind, String file, Fit fit, int tint, float op
             warnings.add("background: sheet 背景的 cols×rows 只有一帧，不会有动画效果（cols=" + sheet.cols() + ", rows=" + sheet.rows()
                     + "）");
         }
-        return new BackgroundSpec(kind, file, fit, tint, opacity, color, sheet);
+        return new BackgroundSpec(kind, file, fit, tint, opacity, color, sheet, text);
     }
 
     private static double clamp(double v, double min, double max) {

@@ -6,6 +6,7 @@ package com.ccnrcom.menu.client.ui;
 
 import com.ccnrcom.menu.config.MenuElement;
 import com.ccnrcom.menu.config.MenuThemeSpec;
+import com.ccnrcom.menu.ui.ButtonStyle;
 import com.ccnrcom.menu.ui.ColorSpec;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -37,10 +38,19 @@ public final class MenuTheme {
     }
 
     /**
-     * 按钮的唯一画法：底色 + 1px 描边 + 左侧强调竖条 + 居中标签。
+     * 按钮的唯一画法。两种外观（{@link ButtonStyle}）：
      *
-     * <p>键盘焦点（{@code focused}）用**内描边**表示，鼠标悬停用**外描边颜色**表示：
-     * 两者可能同时成立（Tab 选中后鼠标又移上去），用同一个视觉通道表达会看不出到底选中了谁。
+     * <ul>
+     *   <li>{@code SOLID}：底色 + 1px 描边 + 左侧强调竖条 + **居中**标签。</li>
+     *   <li>{@code TEXT}：**只有文字**，不画底色/描边/竖条，标签从矩形**左边缘**起画。
+     *       为什么左对齐：纯文字按钮的视觉锚点就是文字的左边，
+     *       在没有底色可以参照的情况下居中会让一列按钮的文字参差不齐。</li>
+     * </ul>
+     *
+     * <p>两种外观都遵守同一条纪律：**键盘焦点与鼠标悬停必须用两个不同的视觉通道**表达。
+     * 实心底用「内描边 = 焦点、外描边色 = 悬停」；纯文字没有描边可用，
+     * 于是用「文字下划线 = 焦点、文字变色 = 悬停」。共用通道的症状是
+     * 「Tab 选中之后鼠标再移上去，就看不出到底选中了哪一个」。
      */
     public void drawButton(
             GuiGraphics gfx,
@@ -53,6 +63,19 @@ public final class MenuTheme {
             boolean focused,
             Component label,
             int colorOverride) {
+        int textColor = buttonTextColor(hovered, colorOverride);
+        int textY = y1 + (y2 - y1 - font.lineHeight) / 2 + 1;
+
+        if (spec.buttonStyle() == ButtonStyle.TEXT) {
+            gfx.drawString(font, label, x1, textY, textColor, true);
+            if (focused) {
+                int underline = textY + font.lineHeight;
+                gfx.fill(
+                        x1, underline, x1 + font.width(label), underline + 1, ColorSpec.withAlpha(spec.accent(), 0xB0));
+            }
+            return;
+        }
+
         int fill = hovered ? spec.buttonFillHover() : spec.buttonFill();
         int border = hovered ? spec.buttonBorderHover() : spec.buttonBorder();
         gfx.fill(x1, y1, x2, y2, fill);
@@ -63,9 +86,12 @@ public final class MenuTheme {
         if (focused) {
             outlined(gfx, x1 + 2, y1 + 2, x2 - 2, y2 - 2, ColorSpec.withAlpha(accent, 0x80));
         }
-        int textColor = buttonTextColor(hovered, colorOverride);
-        int textY = y1 + (y2 - y1 - font.lineHeight) / 2 + 1;
         gfx.drawCenteredString(font, label, (x1 + x2) / 2, textY, textColor);
+    }
+
+    /** 当前按钮外观（布局要用它决定按钮没写宽度时怎么办）。 */
+    public ButtonStyle buttonStyle() {
+        return spec.buttonStyle();
     }
 
     /** 按钮文字色：自带颜色优先，否则按悬停取主题色。 */

@@ -6,7 +6,9 @@ package com.ccnrcom.menu.config;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * 随模组发布的**历史默认配置**（用于一次性升级迁移）。
@@ -23,29 +25,112 @@ import java.util.List;
  *
  * <p>比较用 Gson 解析后做结构比较，不用文本比较：玩家可能用编辑器重排过缩进或键顺序，
  * 文本不同但结构相同的文件仍应被认定为「未修改」。
+ *
+ * <p><b>清单为什么带版本号</b>：最初这份清单只允许放「原版外观」的配置，
+ * 用「长得像不像原版」当成「是不是我们发布的」的替身判据。0.2.1 之后默认菜单本身就是
+ * 一套自定义布局了，替身判据随之失效——真正要防的是「有人凭印象塞进一份**从没发布过**的配置」。
+ * 所以现在每条都必须标注**它随哪个版本发布**，`MenuDefaultsTest` 会去 CHANGELOG 里核对这个版本
+ * 确实存在。凭印象编一个版本号很容易被这条门禁拦住（CHANGELOG 里查无此版）。
  */
 public final class MenuDefaults {
 
     /**
-     * 0.1.0 的默认配置（原版外观：原版按钮 + 原版全景图 + 无自定义元素）。
+     * 历史默认配置：{@code 版本 → 当时随模组发布的默认 menu.json 原文}。
      *
-     * <p>新增条目时必须确认它**确实**是本项目曾经发布过的默认内容，
-     * 且它必须是「原版外观」——`MenuDefaultsTest` 会检查这一点，
-     * 防止有人把一份真正的自定义配置塞进来（那会在升级时覆盖掉玩家的布局意图）。
+     * <p>按版本从旧到新排列。新增条目时把**当时那份文件原样**贴进来（可从
+     * {@code git show <tag>:src/main/resources/assets/ccnr_menu/defaults/menu.json} 取），
+     * 不要「顺手美化一下」——它不是给人读的示例，是给迁移代码比对用的指纹。
      */
-    private static final List<String> LEGACY_DEFAULTS = List.of(
-            """
-            {
-              "enabled": true,
-              "vanillaButtons": true,
-              "background": {
-                "type": "vanilla"
-              },
-              "elements": []
-            }
-            """);
+    private static final Map<String, String> LEGACY_DEFAULTS = shippedDefaults();
 
     private MenuDefaults() {}
+
+    private static Map<String, String> shippedDefaults() {
+        Map<String, String> map = new LinkedHashMap<>();
+        // 0.1.0：原版外观（原版那套按钮 + 原版全景图 + 无自定义元素）
+        map.put(
+                "0.1.0",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": true,
+                  "background": {
+                    "type": "vanilla"
+                  },
+                  "elements": []
+                }
+                """);
+        // 0.2.0 / 0.2.1：右侧竖列布局 + 背景图 + 内置素材
+        map.put(
+                "0.2.1",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": false,
+                  "applyToAllScreens": true,
+                  "background": {
+                    "type": "image",
+                    "file": "background.png",
+                    "fit": "cover",
+                    "opacity": 1.0
+                  },
+                  "elements": [
+                    {
+                      "type": "column",
+                      "x": 0.955,
+                      "y": 0.5,
+                      "align": "right",
+                      "valign": "middle",
+                      "width": 300,
+                      "gap": 8,
+                      "childAlign": "right",
+                      "children": [
+                        {
+                          "type": "image",
+                          "file": "logo_wide_intro_black.png",
+                          "width": 300,
+                          "animation": {
+                            "cols": 8,
+                            "rows": 4,
+                            "frameMs": 81,
+                            "loop": false
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "text": "进入服务器",
+                          "action": "screen:multiplayer",
+                          "width": 200,
+                          "height": 20
+                        },
+                        {
+                          "type": "button",
+                          "text": "单人游戏",
+                          "action": "screen:singleplayer",
+                          "width": 200,
+                          "height": 20
+                        },
+                        {
+                          "type": "button",
+                          "text": "设置",
+                          "action": "screen:options",
+                          "width": 200,
+                          "height": 20
+                        },
+                        {
+                          "type": "button",
+                          "text": "退出游戏",
+                          "action": "quit",
+                          "width": 200,
+                          "height": 20
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+        return java.util.Collections.unmodifiableMap(map);
+    }
 
     /** 是否与某个历史默认配置**结构完全一致**（即玩家从未改过它）。 */
     public static boolean isLegacyUnmodified(String fileContent) {
@@ -58,14 +143,19 @@ public final class MenuDefaults {
             return false;
         }
         if (actual == null || !actual.isJsonObject()) return false;
-        for (String legacy : LEGACY_DEFAULTS) {
+        for (String legacy : LEGACY_DEFAULTS.values()) {
             if (actual.equals(JsonParser.parseString(legacy))) return true;
         }
         return false;
     }
 
-    /** 历史默认配置清单（门禁用：检查它们确实都是「原版外观」）。 */
-    public static List<String> legacyDefaults() {
+    /** 历史默认配置清单（门禁用：检查它们确实对应一个发布过的版本）。 */
+    public static Map<String, String> legacyDefaults() {
         return LEGACY_DEFAULTS;
+    }
+
+    /** 清单里记录的版本号（门禁与诊断输出用）。 */
+    public static Set<String> shippedVersions() {
+        return LEGACY_DEFAULTS.keySet();
     }
 }

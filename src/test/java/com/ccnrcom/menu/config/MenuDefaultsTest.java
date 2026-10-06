@@ -9,8 +9,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ccnrcom.menu.util.JsonUtil;
 import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -22,14 +27,24 @@ import org.junit.jupiter.api.Test;
  * 现象是「装上了但菜单一点变化都没有」，而日志一切正常。
  * 现在升级时会识别「未被修改过的旧默认」并替换——替换对象的判据必须精确到
  * 「结构完全一致」，判宽了就会覆盖玩家自己写好的布局。
+ *
+ * <p>清单里为什么必须标版本号：最初这条门禁用「长得像不像原版」当替身判据，
+ * 因为「原版外观」当时恰好是我们唯一发布过的默认。0.2.1 起默认菜单本身就是一套自定义布局，
+ * 替身判据随之失效。真正要防的是「有人凭印象塞进一份**从没发布过**的配置」，
+ * 所以现在每条都要标注发布版本，并去 CHANGELOG 里核对这个版本真的存在。
  */
 class MenuDefaultsTest {
 
     @Test
     @DisplayName("未修改过的旧默认配置（0.1.0 那份）能被识别")
     void detectsLegacyDefault() {
-        String content = diskDefaultFrom("0.1.0");
-        assertTrue(MenuDefaults.isLegacyUnmodified(content), "0.1.0 的默认配置必须被识别出来");
+        assertTrue(MenuDefaults.isLegacyUnmodified(diskDefaultFrom("0.1.0")), "0.1.0 的默认配置必须被识别出来");
+    }
+
+    @Test
+    @DisplayName("0.2.0/0.2.1 那份右侧竖列默认也要被识别（否则从 0.2 升级上来的人看不到新布局）")
+    void detectsLegacyDefaultOf02x() {
+        assertTrue(MenuDefaults.isLegacyUnmodified(diskDefaultFrom("0.2.1")), "0.2.1 的默认配置必须被识别出来——它是新默认菜单生效的前提");
     }
 
     @Test
@@ -66,6 +81,10 @@ class MenuDefaultsTest {
         assertFalse(
                 MenuDefaults.isLegacyUnmodified(
                         "{\"enabled\":true,\"vanillaButtons\":true,\"background\":{\"type\":\"vanilla\"},\"elements\":[],\"theme\":{}}"));
+        // 在 0.2.1 那份默认上只把整块挪了个位置：结构与默认不再一致，迁移必须放手
+        assertFalse(
+                MenuDefaults.isLegacyUnmodified(diskDefaultFrom("0.2.1").replace("\"x\": 0.955", "\"x\": 0.9")),
+                "玩家微调过的布局被当成默认替换掉，等于把他的改动抹了");
     }
 
     @Test
@@ -80,15 +99,22 @@ class MenuDefaultsTest {
     }
 
     @Test
-    @DisplayName("清单里的每条历史默认都必须是「原版外观」（防止有人塞进一份真配置）")
-    void legacyEntriesAreVanillaLook() {
-        List<String> warnings = new ArrayList<>();
-        for (String legacy : MenuDefaults.legacyDefaults()) {
-            JsonObject json = JsonUtil.GSON.fromJson(legacy, JsonObject.class);
-            MenuConfig config = MenuConfig.parse(json, warnings);
-            assertTrue(config.vanillaButtons(), "历史默认配置必须是「原版按钮」：迁移会覆盖玩家的文件，判据宽一格就会覆盖别人的布局");
-            assertTrue(config.elements().isEmpty(), "历史默认配置不该带自定义元素");
-            assertTrue(warnings.isEmpty(), "历史默认配置解析不该有警告: " + warnings);
+    @DisplayName("清单里的每条历史默认都标注了一个**发布过的版本**，且解析干净")
+    void legacyEntriesAreRecordedReleases() {
+        String changelog = readProjectFile("CHANGELOG.md");
+        assertTrue(MenuDefaults.shippedVersions().size() >= 2, "历史默认至少要有 0.1.0 与 0.2.1 两条");
+        for (Map.Entry<String, String> entry : MenuDefaults.legacyDefaults().entrySet()) {
+            String version = entry.getKey();
+            assertTrue(
+                    version.matches("\\d+\\.\\d+\\.\\d+"), "历史默认的键必须是三段版本号，实际: " + version + "（它要被拿去和 CHANGELOG 核对）");
+            assertTrue(
+                    changelog.contains("## " + version),
+                    "历史默认标注的版本 " + version + " 在 CHANGELOG 里查无此版——" + "凭印象编一个版本号，就等于凭空往迁移清单里塞一份会覆盖玩家布局的配置");
+
+            List<String> warnings = new ArrayList<>();
+            MenuConfig config = MenuConfig.parse(JsonUtil.GSON.fromJson(entry.getValue(), JsonObject.class), warnings);
+            assertTrue(warnings.isEmpty(), version + " 这份历史默认解析出了警告，它不可能真的发布过: " + warnings);
+            assertTrue(config.buttonCount() > 0 || config.vanillaButtons(), version + " 这份历史默认一个按钮都没有（发布出去等于玩家退不出游戏）");
         }
     }
 
@@ -101,21 +127,27 @@ class MenuDefaultsTest {
         assertFalse(MenuDefaults.isLegacyUnmodified(current), "当前默认配置与历史默认撞了：升级迁移会在每次启动时反复替换它");
     }
 
-    /** 从 git 历史里取某个版本的内置默认配置，确保判据锚在真实发布过的内容上。 */
+    /** 取某个版本发布过的内置默认配置（真源就是迁移清单本身，避免测试里再抄一份）。 */
     private static String diskDefaultFrom(String version) {
-        if ("0.1.0".equals(version)) {
-            // 0.1.0 发布的内置默认（原版外观）；与 git 历史中的内容一致
-            return """
-                {
-                  "enabled": true,
-                  "vanillaButtons": true,
-                  "background": {
-                    "type": "vanilla"
-                  },
-                  "elements": []
+        String recorded = MenuDefaults.legacyDefaults().get(version);
+        if (recorded == null) throw new IllegalArgumentException("未知版本: " + version);
+        return recorded;
+    }
+
+    /** 读项目根目录下的文件（找不到就失败，静默跳过等于没有门禁）。 */
+    private static String readProjectFile(String name) {
+        Path dir = Path.of(System.getProperty("user.dir")).toAbsolutePath();
+        for (int i = 0; i < 6 && dir != null; i++) {
+            Path candidate = dir.resolve(name);
+            if (Files.isRegularFile(candidate)) {
+                try {
+                    return Files.readString(candidate, StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    throw new AssertionError("读取失败: " + candidate + " —— " + e);
                 }
-                """;
+            }
+            dir = dir.getParent();
         }
-        throw new IllegalArgumentException("未知版本: " + version);
+        throw new AssertionError("找不到项目文件: " + name + "（user.dir=" + System.getProperty("user.dir") + "）");
     }
 }

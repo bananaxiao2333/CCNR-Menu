@@ -10,6 +10,7 @@ import com.ccnrcom.menu.config.MenuConfig;
 import com.ccnrcom.menu.config.MenuConfigIO;
 import com.ccnrcom.menu.config.MenuConfigStore;
 import com.ccnrcom.menu.config.MenuElement;
+import com.ccnrcom.menu.config.TextSpec;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import java.nio.file.Files;
@@ -104,7 +105,9 @@ public final class MenuClientCommand {
                 Component.literal("  按钮: "
                         + (config.vanillaButtons()
                                 ? "原版（vanillaButtons=true）"
-                                : "自定义 " + config.buttonCount() + " 个 / 元素 " + config.elementCount() + " 个（含容器内）")));
+                                : "自定义 " + config.buttonCount() + " 个 / 元素 " + config.elementCount() + " 个（含容器内）")
+                        + "  外观="
+                        + config.theme().buttonStyle().name().toLowerCase(java.util.Locale.ROOT)));
         reply(
                 ctx,
                 Component.literal("  背景范围: "
@@ -127,6 +130,21 @@ public final class MenuClientCommand {
             }
         }
         reply(ctx, Component.literal(bg.toString()));
+
+        if (background.kind() == BackgroundSpec.Kind.TEXT) {
+            TextSpec text = background.text();
+            reply(
+                    ctx,
+                    Component.literal("    文字背景: " + text.segments().size() + " 段 / " + text.totalChars() + " 字"
+                            + "  调色板=" + text.palette().length + " 色"
+                            + "  scale=" + text.scale()
+                            + "  每字=" + text.charMs() + "ms"
+                            + "  流动=" + text.stepMs() + "ms"
+                            + (text.loop() ? "  循环" : "  只写一次")));
+            for (String line : text.lines()) {
+                reply(ctx, Component.literal("      | " + line));
+            }
+        }
 
         for (MenuElement element : config.elements()) {
             reply(

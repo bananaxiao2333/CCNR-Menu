@@ -4,15 +4,21 @@
 素材来源（**只读**，不改动源文件）：
   /Users/bananaxiao/Documents/MirageV/CCNR图标/
     ├── CCNR图标_H-IMGnTXT横版图标文字_动画版.svg   ← 横版图标 + 入场动画（CSS @keyframes）
-    ├── CCNR图标_H-IMGnTXT横版图标文字.svg          ← 横版图标静态版
     └── CCNR背景.png                                ← 1920x1080 背景
 
-产出（两种配色各一套：white = 浅色图形配深色背景，black = 深色图形配浅色背景）：
-  logo_wide_white.png        横版图标静态图
-  logo_wide_intro_white.png  入场动画精灵图（8 列 x 4 行 = 32 帧，每帧 512x171）
-  logo_wide_black.png
-  logo_wide_intro_black.png
+产出（两套配色）：
+  logo_wide_white.png        横版图标静态图（浅色图形 + 品牌青描边，配深色背景）
+  logo_wide_intro_white.png  入场动画精灵图（8 列 x 10 行 = 80 帧，每帧 512x171）
+  logo_wide_mono.png         横版图标静态图（**全白单色**）
+  logo_wide_intro_mono.png   入场动画精灵图（全白单色，同上网格）
   background.png             背景图（原样拷贝）
+
+`mono` 是什么：把 SVG 里的两个主题变量 `--ccnr-ink` 与 `--ccnr-accent` **同时覆写成 #FFFFFF**，
+于是整枚图标只剩一种颜色，只有透明度在塑形。它配「纯黑背景 + 彩色文字」那套默认菜单——
+背景已经足够花，图标再带自己的强调色就会互相抢戏。
+
+帧率：80 帧 / 2.6s ≈ 30fps。此前是 32 帧 ≈ 12.3fps，入场那几下快动作（pop/draw）能看出顿。
+网格受贴图边长 4096 限制：每帧 512 宽 → 最多 8 列；行数取 10 行 = 4096x1710（约 28MB 显存）。
 
 为什么要在**构建期**渲染而不是运行时解析 SVG：
   Minecraft 不认识 SVG。动画是 CSS @keyframes，只能在浏览器里跑。所以把动画
@@ -39,19 +45,26 @@ TMP = os.path.join(MODULE, "build/icon-presets")
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 ANIMATED_SVG = "CCNR图标_H-IMGnTXT横版图标文字_动画版.svg"
-STATIC_SVG = "CCNR图标_H-IMGnTXT横版图标文字.svg"
 BACKGROUND_PNG = "CCNR背景.png"
 
+# 静态版不再单独需要：动画版的最后一帧就是静止态（脚本按 INTRO_SECONDS 取满整段），
+# 所以旧版用的 «..._图标文字.svg» 已经不读了。
+
 # 横版画板是 3:1（SVG viewBox 1536x512）。精灵图每帧 512x171 是它的 1/3 缩放：
-# 菜单里图标显示宽度约 400 GUI 单位，按 GUI scale 2 计约 800 物理像素，
-# 512 宽的源在 1080p 上够清晰，同时整张贴图 4096x684（约 11MB）不至于太占显存。
+# 菜单里图标显示宽度约 300 GUI 单位，按 GUI scale 2 计约 600 物理像素，
+# 512 宽的源够清晰，同时整张贴图 4096x1710（约 28MB）不至于太占显存。
 FRAME_W, FRAME_H = 512, 171
-COLS, ROWS = 8, 4
+COLS, ROWS = 8, 10
 FRAMES = COLS * ROWS
-# 入场动画总时长约 2.5s（最长的一条 animation: delay 1.98s + duration 0.50s）。
-# 32 帧 / 2.6s ≈ 12.3fps，配置里写 frameMs=81 即可。
+# 入场动画总时长约 2.6s（最长的一条 animation: delay 1.98s + duration 0.50s）。
+# 80 帧 / 2.6s ≈ 30fps，配置里写 frameMs=33 即可。
 INTRO_SECONDS = 2.60
 STATIC_W, STATIC_H = 1536, 512
+
+# 主题变量在 SVG 的 <style> 里：#ccnrLogo.theme-dark 定义浅色图形 + 品牌青强调色。
+# `mono` 不是源文件里已有的主题，而是本脚本注入的一条规则（源文件只读，不改）。
+THEME_DARK_RULE = "#ccnrLogo.theme-dark  { --ccnr-ink: #E6EDF3; --ccnr-accent: #4FD1E0; }"
+MONO_RULE = "    #ccnrLogo.theme-mono  { --ccnr-ink: #FFFFFF; --ccnr-accent: #FFFFFF; }\n"
 
 HARNESS = """<!doctype html><html><head><meta charset="utf-8">
 <style>html,body{{margin:0;padding:0;background:transparent;overflow:hidden}}
@@ -223,23 +236,37 @@ def with_theme(svg, theme):
     return svg.replace('id="ccnrLogo"', f'id="ccnrLogo" class="{theme}"', 1)
 
 
+def inject_mono_rule(svg):
+    """注入 `mono` 主题规则。
+
+    锚点找不到时**直接退出**而不是「默默按原样渲染」：那样产出的
+    `logo_wide_mono.png` 会是一张带品牌青的图，名字却叫 mono——
+    这种错不会让任何构建失败，只会在游戏里被看出来。
+    """
+    if THEME_DARK_RULE not in svg:
+        sys.exit(f"源 SVG 里找不到主题规则锚点，无法注入 mono 主题：{THEME_DARK_RULE}")
+    return svg.replace(THEME_DARK_RULE, THEME_DARK_RULE + "\n" + MONO_RULE, 1)
+
+
 def main():
     if not os.path.isfile(CHROME):
         sys.exit(f"找不到 Chrome：{CHROME}（渲染 SVG 需要它）")
     anim_path = os.path.join(SRC, ANIMATED_SVG)
-    static_path = os.path.join(SRC, STATIC_SVG)
     bg_path = os.path.join(SRC, BACKGROUND_PNG)
-    for p in (anim_path, static_path, bg_path):
+    for p in (anim_path, bg_path):
         if not os.path.isfile(p):
             sys.exit(f"图标源文件缺失：{p}（可用环境变量 CCNR_ICON_DIR 指定图标目录）")
 
     os.makedirs(OUT, exist_ok=True)
     os.makedirs(TMP, exist_ok=True)
     flag = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n"
-    animated = io.open(anim_path, encoding="utf-8").read().replace(flag, "")
+    animated = inject_mono_rule(io.open(anim_path, encoding="utf-8").read().replace(flag, ""))
 
-    # 1) 两套静态横版图标：theme-dark = 浅色图形（配深色背景），theme-light = 深色图形（配浅色背景）
-    for theme, name in (("theme-dark", "white"), ("theme-light", "black")):
+    # 两套配色：theme-dark = 浅色图形 + 品牌青（配深色背景）；theme-mono = 全白单色
+    themes = (("theme-dark", "white"), ("theme-mono", "mono"))
+
+    # 1) 静态横版图标
+    for theme, name in themes:
         print(f"渲染静态横版图标（{name}）...")
         png = shoot(with_theme(scale_attr(animated, STATIC_W, STATIC_H), theme),
                     STATIC_W, STATIC_H, 99.0, f"static_{name}")
@@ -247,7 +274,7 @@ def main():
         print(f"  wrote presets/logo_wide_{name}.png  {STATIC_W}x{STATIC_H}")
 
     # 2) 入场动画精灵图：按 INTRO_SECONDS 均匀取 FRAMES 帧，最后一帧即静止态
-    for theme, name in (("theme-dark", "white"), ("theme-light", "black")):
+    for theme, name in themes:
         print(f"渲染 {name} 入场动画 {FRAMES} 帧（{COLS}x{ROWS}，每帧 {FRAME_W}x{FRAME_H}）...")
         sheet = [[(0, 0, 0, 0) for _ in range(COLS * FRAME_W)] for _ in range(ROWS * FRAME_H)]
         for i in range(FRAMES):

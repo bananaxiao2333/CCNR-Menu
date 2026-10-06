@@ -45,7 +45,7 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 - **无任何外部模组依赖**（不引用 CCNR-RP / CCNR-PM / CCNR-Com，也不依赖 MCEF）。
   动画 GIF 用 JDK 自带的 `ImageIO`；精灵图走原版贴图管线。
 - 纯类（可直接 JUnit 测）：`ui` 包全部、`gif` 包全部、`config` 的
-  `MenuConfig` / `BackgroundSpec` / `MenuElement` / `MenuAction` / `MenuThemeSpec`。
+  `MenuConfig` / `BackgroundSpec` / `TextSpec` / `MenuElement` / `MenuAction` / `MenuThemeSpec` / `MenuDefaults`。
 
 ## 开发纪律（完整版见 docs/01）
 
@@ -96,11 +96,28 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
   否则开背包时动画背景会盖住世界（`BackgroundScopeTest` 专门守着这一条）。
 - **容器子元素的 `x`/`y` 不生效**：位置由 `MenuGeometry.stack` 决定，只有 `offsetX`/`offsetY` 还有效。
   改容器逻辑前先跑 `MenuGeometryTest` 的竖列用例（左/中/右对齐、自动列宽、间距不计最后一个）。
-- **动画图片元素的宽高比按单帧算**：整张精灵图 4096×684（6:1）而单帧 512×171（3:1），
+- **动画图片元素的宽高比按单帧算**：整张精灵图 4096×1710（≈2.4:1）而单帧 512×171（3:1），
   用整图比例会**把图标压扁一半**。实现见 `MenuScreen.sourceSize`。
 - **内置素材是生成的，不要手改**：`assets/ccnr_menu/presets/` 由 `scripts/make-icon-presets.py`
-  从 CCNR 图标的 SVG 渲染而来（需要 Chrome + python3，不需要 PIL）。
+  从 CCNR 图标的 SVG 渲染而来（需要 Chrome + python3，不需要 PIL；162 次无头 Chrome 启动，
+  跑一轮约 6~10 分钟，放后台跑）。
   改了生成脚本就要重跑并提交产物，`PresetAssetsTest` 会把「配置引用」与「磁盘文件」双向对齐。
+- **文字背景（`type: "text"`）只画文字、不碰贴图**：动画数学全在纯类 `ui/TextWave`
+  （色带 `palette[(下标+时间/stepMs) mod n]` + 逐字出现的时刻表），
+  渲染在 `client/background/TextBackground`。两个约束不能破：
+  ① **每行的 pose 只 push 一次**（缩放整行共享，逐字形 push/pop 会让每帧多几百次矩阵操作）；
+  ② **字符跨行连续计数**（每行各自从头开始的话，多行会看起来「各动各的」而不是一整块）。
+- **`theme.buttonStyle: "text"` 下按钮不写 `width` 时宽度贴着文字**（`MenuScreen.buttonWidth`）：
+  纯文字按钮的热区看不见，留 200 宽的隐形矩形会让鼠标停在文字右边也变色。
+  另外 `text` 外观的**焦点提示是文字下划线**——「焦点与悬停必须用两个视觉通道」这条纪律
+  不能因为换了外观就丢掉。
+- **`MenuDefaults.LEGACY_DEFAULTS` 是「版本 → 默认配置原文」的映射**，不是一份随便写的清单：
+  每个键都要能在 CHANGELOG 里查到那个版本（`MenuDefaultsTest` 会核对）。
+  新增条目时把**当时那份文件原样**贴进来，不要顺手美化——它是给迁移代码比对用的指纹。
 - **`MenuConfigIO.PRESET_FILES` 是发布的素材清单**：新素材必须同时出现在清单与资源目录里，
   否则玩家拿不到（或首次启动就报缺失）。
+- **背景指纹（`ScreenBackgrounds.signatureOf`）必须覆盖所有影响画面的输入**：背景参数、
+  素材 mtime、`config.theme()`（压暗层跟着它走）、以及 `TextSpec.signature()`。
+  数组字段一律**手写字符串化**，别用 record 的 `toString()`——数组的 `toString` 是身份哈希，
+  同一个配置重建两次会得到不同的指纹，症状是「背景被反复重建」。
 - **不要改动 CCNR-RP / CCNR-PM / CCNR-Com**：所有变更限本仓库。
