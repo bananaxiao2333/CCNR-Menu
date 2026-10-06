@@ -33,6 +33,7 @@ import java.util.List;
  *     （世界选择、多人列表、设置、语言、Mod 列表……）。默认 {@code true}：
  *     「换掉泥土界面和全景图界面」本来就是同一件事——一个服务器只想看到自己的一张背景。
  *     世界内的界面（暂停、背包等，背景是世界本身）**始终不动**。
+ * @param mark 居中标志（默认只画在泥土页面等**非主菜单**的接管界面上；主菜单自己有元素布局）
  */
 public record MenuConfig(
         boolean enabled,
@@ -40,7 +41,8 @@ public record MenuConfig(
         BackgroundSpec background,
         MenuThemeSpec theme,
         List<MenuElement> elements,
-        boolean applyToAllScreens) {
+        boolean applyToAllScreens,
+        MarkSpec mark) {
 
     /** 本模组的 modid，同时也是文案键前缀。 */
     public static final String MOD_ID = "ccnr_menu";
@@ -52,6 +54,7 @@ public record MenuConfig(
         background = background == null ? BackgroundSpec.DEFAULT : background;
         theme = theme == null ? MenuThemeSpec.DEFAULT : theme;
         elements = elements == null ? List.of() : List.copyOf(elements);
+        mark = mark == null ? MarkSpec.NONE : mark;
     }
 
     /**
@@ -61,7 +64,8 @@ public record MenuConfig(
      * 想让菜单变样的做法见 README 与 docs/03。
      */
     public static MenuConfig template() {
-        return new MenuConfig(true, true, BackgroundSpec.DEFAULT, MenuThemeSpec.DEFAULT, List.of(), true);
+        return new MenuConfig(
+                true, true, BackgroundSpec.DEFAULT, MenuThemeSpec.DEFAULT, List.of(), true, MarkSpec.NONE);
     }
 
     /**
@@ -73,7 +77,8 @@ public record MenuConfig(
      * 宁可丑，不可锁死。
      */
     public static MenuConfig fallback() {
-        return new MenuConfig(true, true, BackgroundSpec.DEFAULT, MenuThemeSpec.DEFAULT, List.of(), true);
+        return new MenuConfig(
+                true, true, BackgroundSpec.DEFAULT, MenuThemeSpec.DEFAULT, List.of(), true, MarkSpec.NONE);
     }
 
     /** 是否存在配置出来的按钮（用于诊断输出与防呆）。 */
@@ -101,15 +106,17 @@ public record MenuConfig(
         boolean applyToAllScreens = JsonUtil.bool(root, "applyToAllScreens", true);
         BackgroundSpec background = BackgroundSpec.parse(root, warnings);
         MenuThemeSpec theme = MenuThemeSpec.parse(root, warnings);
+        MarkSpec mark = MarkSpec.parse(root, warnings);
 
         List<MenuElement> elements = parseElements(root, "elements", 0, warnings);
 
-        MenuConfig config = new MenuConfig(enabled, vanillaButtons, background, theme, elements, applyToAllScreens);
+        MenuConfig config =
+                new MenuConfig(enabled, vanillaButtons, background, theme, elements, applyToAllScreens, mark);
 
         // 防呆：一个按钮都没有的菜单会把玩家锁在主界面（进不去设置、退不出游戏）。
         if (config.buttonCount() == 0 && !vanillaButtons) {
             warnings.add("配置里没有任何 button 元素 → 已自动改用原版按钮（否则主菜单会没有按钮，玩家退不出游戏）");
-            config = new MenuConfig(true, true, background, theme, elements, applyToAllScreens);
+            config = new MenuConfig(true, true, background, theme, elements, applyToAllScreens, mark);
         }
         return config;
     }

@@ -13,6 +13,7 @@ import com.ccnrcom.menu.config.MenuConfig;
 import com.ccnrcom.menu.config.MenuConfigIO;
 import com.ccnrcom.menu.config.MenuElement;
 import com.ccnrcom.menu.util.JsonUtil;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -48,12 +49,25 @@ class PresetAssetsTest {
         return fail("找不到项目根目录：user.dir=" + System.getProperty("user.dir"));
     }
 
-    /** 配置里引用的所有素材文件名（含容器内元素与背景）。 */
+    /** 配置里引用的所有素材名（含容器内元素、背景，以及轮播与居中标志）。 */
     private static Set<String> referencedAssets(MenuConfig config) {
-        Set<String> files = new TreeSet<>();
-        if (config.background().needsFile()) files.add(config.background().file());
+        Set<String> files = new TreeSet<>(config.background().assetFiles());
+        if (config.mark().enabled()) files.add(config.mark().file());
         for (MenuElement element : config.elements()) collect(element, files);
         return files;
+    }
+
+    /** 素材目录下所有文件的相对路径（用 {@code /} 分隔，与配置里的写法一致）。 */
+    private static Set<String> filesOnDisk(Path dir) {
+        Set<String> out = new TreeSet<>();
+        try (Stream<Path> files = Files.walk(dir)) {
+            for (Path file : files.filter(Files::isRegularFile).toList()) {
+                out.add(dir.relativize(file).toString().replace(File.separatorChar, '/'));
+            }
+        } catch (IOException e) {
+            fail("读取素材目录失败: " + e);
+        }
+        return out;
     }
 
     private static void collect(MenuElement element, Set<String> out) {
@@ -93,14 +107,7 @@ class PresetAssetsTest {
         Path dir = projectRoot().resolve(PRESET_DIR);
         assertTrue(Files.isDirectory(dir), "内置素材目录缺失: " + dir);
 
-        Set<String> onDisk = new TreeSet<>();
-        try (Stream<Path> files = Files.list(dir)) {
-            for (Path file : files.filter(Files::isRegularFile).toList()) {
-                onDisk.add(file.getFileName().toString());
-            }
-        } catch (IOException e) {
-            fail("读取素材目录失败: " + e);
-        }
+        Set<String> onDisk = filesOnDisk(dir);
 
         Set<String> listed = new TreeSet<>(MenuConfigIO.PRESET_FILES);
         Set<String> notListed = new TreeSet<>(onDisk);
@@ -113,7 +120,7 @@ class PresetAssetsTest {
     }
 
     @Test
-    @DisplayName("精灵图规格与配置相符（8 列 4 行 = 32 帧，每帧宽高比 3:1）")
+    @DisplayName("精灵图规格与配置相符（8 列 10 行 = 80 帧 ≈30fps，每帧宽高比 3:1）")
     void spriteSheetMatchesConfig() {
         // 配置里写的是 cols/rows/frameMs，一旦重渲染用了别的网格，动画会错位
         for (String resource :

@@ -6,8 +6,15 @@
     "type": "image",
     "file": "background.png",
     "fit": "cover",
-    "tint": "#808080",
     "opacity": 1.0
+  },
+  "mark": {
+    "file": "logo_wide_white.png",
+    "width": 420,
+    "opacity": 0.9,
+    "x": 0.5,
+    "y": 0.5,
+    "onMainMenu": false
   },
   "theme": {
     "buttonStyle": "solid",

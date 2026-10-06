@@ -37,8 +37,9 @@ public final class BackgroundFactory {
             case IMAGE -> createImage(spec);
             case SHEET -> createSheet(spec);
             case GIF -> createGif(spec);
-                // 文字背景没有素材可缺失：它是纯绘制，构造永远不会失败，也就不需要降级分支
-            case TEXT -> new TextBackground(spec);
+                // 轮播：第一张同步加载（素材不在会当场警告并跳过那一张），其余在工作线程上提前解码，
+                // 所以它的构造不会失败，也就不需要降级分支
+            case SLIDESHOW -> new SlideshowBackground(spec);
         };
     }
 

@@ -6,11 +6,12 @@ package com.ccnrcom.menu.command;
 
 import com.ccnrcom.menu.client.MenuScreen;
 import com.ccnrcom.menu.config.BackgroundSpec;
+import com.ccnrcom.menu.config.MarkSpec;
 import com.ccnrcom.menu.config.MenuConfig;
 import com.ccnrcom.menu.config.MenuConfigIO;
 import com.ccnrcom.menu.config.MenuConfigStore;
 import com.ccnrcom.menu.config.MenuElement;
-import com.ccnrcom.menu.config.TextSpec;
+import com.ccnrcom.menu.config.SlideSpec;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import java.nio.file.Files;
@@ -131,19 +132,30 @@ public final class MenuClientCommand {
         }
         reply(ctx, Component.literal(bg.toString()));
 
-        if (background.kind() == BackgroundSpec.Kind.TEXT) {
-            TextSpec text = background.text();
+        if (background.kind() == BackgroundSpec.Kind.SLIDESHOW) {
+            SlideSpec slide = background.slide();
             reply(
                     ctx,
-                    Component.literal("    文字背景: " + text.segments().size() + " 段 / " + text.totalChars() + " 字"
-                            + "  调色板=" + text.palette().length + " 色"
-                            + "  scale=" + text.scale()
-                            + "  每字=" + text.charMs() + "ms"
-                            + "  流动=" + text.stepMs() + "ms"
-                            + (text.loop() ? "  循环" : "  只写一次")));
-            for (String line : text.lines()) {
-                reply(ctx, Component.literal("      | " + line));
+                    Component.literal("    轮播: " + background.slides().size() + " 张"
+                            + "  每张=" + slide.holdMs() + "ms"
+                            + "  交叉淡入=" + slide.fadeMs() + "ms"
+                            + "  放大=" + Math.round(slide.zoom() * 100f) + "%"
+                            + "  右移=" + Math.round(slide.panX() * 100f) + "%"
+                            + (slide.loop() ? "  循环" : "  播完停在最后一张")));
+            for (String name : background.slides()) {
+                reply(ctx, Component.literal("      | " + name + "  " + assetState(name)));
             }
+        }
+
+        MarkSpec mark = config.mark();
+        if (mark.enabled()) {
+            reply(
+                    ctx,
+                    Component.literal("  居中标志: " + mark.file()
+                            + (mark.width() == MarkSpec.AUTO ? "  width=原图" : "  width=" + mark.width())
+                            + "  不透明度=" + String.format(java.util.Locale.ROOT, "%.2f", mark.opacity())
+                            + (mark.onMainMenu() ? "  主菜单上也画" : "  只画在泥土界面")
+                            + "  " + assetState(mark.file())));
         }
 
         for (MenuElement element : config.elements()) {
@@ -175,6 +187,16 @@ public final class MenuClientCommand {
     private static String fileState(BackgroundSpec background) {
         try {
             Path file = MenuConfigIO.resolveAsset(background.file());
+            return Files.isRegularFile(file) ? "[已找到]" : "[文件不存在]";
+        } catch (IllegalArgumentException e) {
+            return "[路径越界]";
+        }
+    }
+
+    /** 单个素材名的状态（轮播与标志共用）。 */
+    private static String assetState(String name) {
+        try {
+            Path file = MenuConfigIO.resolveAsset(name);
             return Files.isRegularFile(file) ? "[已找到]" : "[文件不存在]";
         } catch (IllegalArgumentException e) {
             return "[路径越界]";

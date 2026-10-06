@@ -33,7 +33,8 @@ import org.slf4j.Logger;
  * 但只有前者会把名字从表里摘掉；重复调 release 由 MC 内部的 safeClose 保证安全。
  *
  * <p>线程：**只能在渲染线程上创建**（构造 DynamicTexture 会做 GL 上传）。GIF 那条路因此
- * 把解码放在工作线程、把建贴图放回渲染线程。
+ * 把解码放在工作线程、把建贴图放回渲染线程；轮播背景同理，用 {@link #decodeFile} +
+ * {@link #fromImage} 把这两步拆开。
  */
 public final class FileTexture implements AutoCloseable {
 
@@ -66,19 +67,47 @@ public final class FileTexture implements AutoCloseable {
      * @throws IOException 文件不可读、不是图片、尺寸超限
      */
     public static FileTexture load(Path file, String key) throws IOException {
-        byte[] bytes = Files.readAllBytes(file);
-        if (bytes.length == 0) throw new IOException("空文件: " + file);
-        NativeImage image = decode(bytes, file);
+        NativeImage image = decodeFile(file);
         try {
-            DynamicTexture texture = new DynamicTexture(image);
-            ResourceLocation location = new ResourceLocation("ccnr_menu", "bg/" + sanitize(key));
-            Minecraft.getInstance().getTextureManager().register(location, texture);
-            return new FileTexture(location, image.getWidth(), image.getHeight(), texture);
-        } catch (RuntimeException e) {
-            // register/DynamicTexture 失败时，这张 image 的所有权还在我们手上
+            return fromImage(image, key);
+        } catch (Exception e) {
+            // fromImage 失败时所有权仍在我们手上，这里必须收尾（否则解码出来的像素泄漏）
             image.close();
             throw e;
         }
+    }
+
+    /**
+     * 把文件解码成 RGBA 像素。
+     *
+     * <p>**不碰 GL、不读游戏状态**，所以可以在工作线程上调用——这是轮播背景能「提前一张异步解码」
+     * 的前提（解码 1920 宽的 JPEG 要几十毫秒，放在渲染线程上就是一次可见的顿）。
+     */
+    public static NativeImage decodeFile(Path file) throws IOException {
+        byte[] bytes = Files.readAllBytes(file);
+        if (bytes.length == 0) throw new IOException("空文件: " + file);
+        return decode(bytes, file);
+    }
+
+    /**
+     * 已解码的像素 → 注册好的贴图。**必须在渲染线程上调用**（构造 {@link DynamicTexture} 会走 GL）。
+     *
+     * <p>所有权约定：**成功时** {@code image} 归贴图管（{@link #close()} 会释放它），
+     * **失败时**仍归调用方，由调用方负责 {@code image.close()}。写成这样是为了让失败路径只有一处收尾，
+     * 不会出现「两处都关一次」或「两处都没关」。
+     */
+    public static FileTexture fromImage(NativeImage image, String key) throws IOException {
+        checkDimensions(image.getWidth(), image.getHeight(), Path.of(key));
+        DynamicTexture texture = new DynamicTexture(image);
+        ResourceLocation location = new ResourceLocation("ccnr_menu", "bg/" + sanitize(key));
+        try {
+            Minecraft.getInstance().getTextureManager().register(location, texture);
+        } catch (RuntimeException e) {
+            // 注册失败：贴图对象没进 TextureManager，谁都不会替它收尾
+            texture.close();
+            throw e;
+        }
+        return new FileTexture(location, image.getWidth(), image.getHeight(), texture);
     }
 
     /**

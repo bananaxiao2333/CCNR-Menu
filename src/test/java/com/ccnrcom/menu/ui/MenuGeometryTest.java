@@ -225,4 +225,58 @@ class MenuGeometryTest {
         assertTrue(MenuGeometry.overflows(new MenuGeometry.Rect(0, 235, 10, 10), 427, 240));
         assertFalse(MenuGeometry.overflows(new MenuGeometry.Rect(0, 0, 427, 240), 427, 240));
     }
+
+    @Test
+    @DisplayName("kenBurns：进度 0 时与原地一模一样，进度 1 时放大且向右偏移")
+    void kenBurnsMovesForward() {
+        // 1920x1080 的图铺到 1920x1080 的屏幕上，cover 之后正好整屏
+        MenuGeometry.Rect base = MenuGeometry.fit(Fit.COVER, 1920, 1080, 1920, 1080);
+        assertEquals(new MenuGeometry.Rect(0, 0, 1920, 1080), base);
+
+        MenuGeometry.Rect start = MenuGeometry.kenBurns(base, 0.08f, 0.05f, 0f, 0f, 1920, 1080);
+        assertEquals(base, start, "进度 0 时必须与不运镜完全一致（否则切图那一下会跳）");
+
+        MenuGeometry.Rect end = MenuGeometry.kenBurns(base, 0.08f, 0.05f, 0f, 1f, 1920, 1080);
+        assertTrue(end.w() > base.w(), "要放大一点点");
+        assertTrue(end.h() > base.h());
+        assertTrue(end.x() > base.x(), "要缓慢往右偏移");
+    }
+
+    @Test
+    @DisplayName("kenBurns：围绕中心放大（左右各让出相同的量），否则画面会往右下角跑")
+    void kenBurnsZoomsAroundCenter() {
+        MenuGeometry.Rect base = new MenuGeometry.Rect(0, 0, 1000, 500);
+        MenuGeometry.Rect zoomed = MenuGeometry.kenBurns(base, 0.2f, 0f, 0f, 1f, 1000, 500);
+        assertEquals(1200, zoomed.w());
+        assertEquals(600, zoomed.h());
+        assertEquals(-100, zoomed.x(), "左边让出 100");
+        assertEquals(100, zoomed.x2() - base.x2(), "右边也多出 100");
+        assertEquals(-50, zoomed.y());
+    }
+
+    @Test
+    @DisplayName("kenBurns：偏移按屏幕尺寸的比例算，分辨率变了观感一致")
+    void kenBurnsPanScalesWithScreen() {
+        MenuGeometry.Rect small =
+                MenuGeometry.kenBurns(new MenuGeometry.Rect(0, 0, 320, 240), 0f, 0.1f, 0f, 1f, 320, 240);
+        MenuGeometry.Rect large =
+                MenuGeometry.kenBurns(new MenuGeometry.Rect(0, 0, 1920, 1080), 0f, 0.1f, 0f, 1f, 1920, 1080);
+        assertEquals(32, small.x(), "320 宽的 10%");
+        assertEquals(192, large.x(), "1920 宽的 10%");
+    }
+
+    @Test
+    @DisplayName("kenBurns：进度越界/NaN 都被收敛（配置写错了也不该画出错位画面）")
+    void kenBurnsClampsProgress() {
+        MenuGeometry.Rect base = new MenuGeometry.Rect(0, 0, 100, 100);
+        assertEquals(
+                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, 1f, 100, 100),
+                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, 99f, 100, 100),
+                "进度大于 1 按 1 处理");
+        assertEquals(
+                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, 0f, 100, 100),
+                MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, -5f, 100, 100),
+                "负进度按 0 处理");
+        assertEquals(base, MenuGeometry.kenBurns(base, 0.5f, 0f, 0f, Float.NaN, 100, 100), "NaN 按 0 处理");
+    }
 }
