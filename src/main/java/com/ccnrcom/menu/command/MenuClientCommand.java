@@ -151,9 +151,12 @@ public final class MenuClientCommand {
         if (mark.enabled()) {
             reply(
                     ctx,
-                    Component.literal("  居中标志: " + mark.file()
+                    Component.literal("  标志: " + mark.file()
                             + (mark.width() == MarkSpec.AUTO ? "  width=原图" : "  width=" + mark.width())
                             + "  不透明度=" + String.format(java.util.Locale.ROOT, "%.2f", mark.opacity())
+                            + "  锚点=" + mark.align().name().toLowerCase(java.util.Locale.ROOT) + "/"
+                            + mark.valign().name().toLowerCase(java.util.Locale.ROOT)
+                            + String.format(java.util.Locale.ROOT, "  x=%.3f  y=%.3f", mark.x(), mark.y())
                             + (mark.onMainMenu() ? "  主菜单上也画" : "  只画在泥土界面")
                             + "  " + assetState(mark.file())));
         }

@@ -90,14 +90,28 @@ public record MenuElement(
      * @param gap 相邻子元素的间距（像素）
      * @param childAlign 子元素在**列宽之内**的横向对齐方式。
      *     {@code right} 时图标与按钮的右边缘对齐——这正是「整块靠右、图标与按钮列右对齐」的做法
+     * @param bar 列背后的纵向色带（为 {@code null} 表示不画）
      */
-    public record Column(List<MenuElement> children, int gap, Align childAlign) {
+    public record Column(List<MenuElement> children, int gap, Align childAlign, Bar bar) {
 
         public Column {
             children = children == null ? List.of() : List.copyOf(children);
             childAlign = childAlign == null ? Align.CENTER : childAlign;
         }
     }
+
+    /**
+     * 列背后那条**满屏高**的色带。
+     *
+     * <p>它是容器属性而不是一种元素，因为它的位置和宽度都由这一列自己决定：写成独立元素的话，
+     * 作者得手写一个宽度，而按钮宽度是随文案变的（{@code text} 外观下宽度贴着文字）——
+     * 改一个字，色带就和按钮错开。
+     *
+     * @param color 颜色（含 alpha；20% 黑 = {@code #33000000}）
+     * @param fullColumnWidth {@code true} 用整列宽（和图标同宽），
+     *     {@code false} 用**按钮们实际占据的范围**（默认，也就是「宽度覆盖按钮列」）
+     */
+    public record Bar(int color, boolean fullColumnWidth) {}
 
     /** 尺寸/颜色用「未指定」哨兵值。0 也是合法颜色（全透明），因此颜色哨兵不能是 0。 */
     public static final int AUTO = -1;
@@ -120,6 +134,9 @@ public record MenuElement(
 
     /** 列内间距的上限（像素）。 */
     public static final int MAX_GAP = 400;
+
+    /** 色带的默认颜色：20% 黑（能压住亮背景，又不至于把底图糊掉）。 */
+    public static final int DEFAULT_BAR_COLOR = 0x33000000;
 
     public MenuElement {
         type = type == null ? Type.BUTTON : type;

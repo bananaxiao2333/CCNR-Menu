@@ -7,11 +7,13 @@ package com.ccnrcom.menu.config;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ccnrcom.menu.ui.Align;
 import com.ccnrcom.menu.ui.ButtonStyle;
 import com.ccnrcom.menu.ui.ColorSpec;
+import com.ccnrcom.menu.ui.VAlign;
 import com.ccnrcom.menu.util.JsonUtil;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
@@ -66,13 +68,15 @@ class MenuConfigTest {
         assertTrue(slide.loop(), "轮播默认循环");
         assertEquals(11, config.background().assetFiles().size(), "轮播的素材清单要带上每一张（门禁与诊断都靠它）");
 
-        // 泥土页面上的居中标志
+        // 泥土页面右下角的水印标志
         MarkSpec mark = config.mark();
-        assertTrue(mark.enabled(), "默认要在泥土页面上画居中标志");
+        assertTrue(mark.enabled(), "默认要在泥土页面上画标志");
         assertEquals("logo_wide_mono.png", mark.file(), "用全白单色横版图标");
-        assertFalse(mark.onMainMenu(), "主菜单左列里已经有图标了，正中间再画一个就是两个 logo 打架");
-        assertEquals(0.5, mark.x(), 0.0001, "横向居中");
-        assertEquals(0.5, mark.y(), 0.0001, "纵向居中");
+        assertFalse(mark.onMainMenu(), "主菜单左列里已经有图标了，再叠一个就是两个 logo 打架");
+        assertEquals(Align.RIGHT, mark.align(), "默认挂在右下角：x/y 指的是标志的右/下边缘");
+        assertEquals(VAlign.BOTTOM, mark.valign());
+        assertTrue(mark.x() < 1.0 && mark.x() > 0.9, "留一点右边距（贴边看起来像被裁掉了）");
+        assertTrue(mark.y() < 1.0 && mark.y() > 0.9, "留一点下边距");
 
         // 外观：无背景纯文字
         assertEquals(ButtonStyle.TEXT, config.theme().buttonStyle(), "默认按钮是纯文字外观");
@@ -85,6 +89,11 @@ class MenuConfigTest {
         assertEquals(Align.LEFT, column.align(), "整块靠左");
         assertEquals(Align.LEFT, column.column().childAlign(), "列内左对齐（图标与按钮左边缘对齐）");
         assertEquals(300, column.width(), "列宽固定，这样按钮不会因图标宽度变化而左右跳");
+        assertTrue(column.x() > 0.05, "整块不贴左边（贴边看着像被切掉一块）");
+        MenuElement.Bar bar = column.column().bar();
+        assertTrue(bar != null, "默认在按钮列背后画一条色带");
+        assertEquals(0x33000000, bar.color(), "20% 黑：压得住亮背景，又不至于把底图糊掉");
+        assertFalse(bar.fullColumnWidth(), "默认色带宽度 = 按钮们实际占据的范围，不是整列宽");
         MenuElement icon = column.column().children().get(0);
         assertEquals(MenuElement.Type.IMAGE, icon.type(), "图标在按钮之上");
         assertTrue(icon.animatedImage(), "默认图标播放入场动画");
@@ -98,6 +107,50 @@ class MenuConfigTest {
                 assertEquals(MenuElement.AUTO, child.width(), "纯文字按钮不写宽度：宽度由外观决定（贴着文字，否则看不见的热区比文字宽一大截）");
             }
         }
+    }
+
+    @Test
+    @DisplayName("列色带：颜色/宽度写错只警告不改形状，读不懂的 width 落到 buttons")
+    void barParsingIsLoud() {
+        List<String> warnings = new ArrayList<>();
+        MenuConfig config = MenuConfig.parse(
+                parse("{\"elements\":[{\"type\":\"column\",\"children\":["
+                        + "{\"type\":\"button\",\"text\":\"a\",\"action\":\"quit\"}],"
+                        + "\"bar\":{\"color\":\"not-a-color\",\"width\":\"斜着\"}}]}"),
+                warnings);
+        MenuElement.Bar bar = config.elements().get(0).column().bar();
+        assertNotNull(bar, "写了 bar 就该有一条色带（哪怕颜色写错）");
+        assertEquals(MenuElement.DEFAULT_BAR_COLOR, bar.color(), "颜色写错 → 用 20% 黑");
+        assertFalse(bar.fullColumnWidth(), "width 不认识 → 用 buttons（作者想要的通常是这个）");
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("bar.color")), warnings.toString());
+        assertTrue(warnings.stream().anyMatch(w -> w.contains("bar.width")), warnings.toString());
+    }
+
+    @Test
+    @DisplayName("列色带：不写就没有；width=column 与默认的 buttons 是两种语义")
+    void barIsOptIn() {
+        assertNull(
+                MenuConfig.parse(
+                                parse("{\"elements\":[{\"type\":\"column\",\"children\":[{\"type\":\"button\","
+                                        + "\"text\":\"a\",\"action\":\"quit\"}]}]}"),
+                                new ArrayList<>())
+                        .elements()
+                        .get(0)
+                        .column()
+                        .bar(),
+                "不写 bar 就什么都不加（默认菜单之外的作者不该被塞一条黑条）");
+        assertTrue(
+                MenuConfig.parse(
+                                parse("{\"elements\":[{\"type\":\"column\",\"children\":[{\"type\":\"button\","
+                                        + "\"text\":\"a\",\"action\":\"quit\"}],"
+                                        + "\"bar\":{\"width\":\"column\"}}]}"),
+                                new ArrayList<>())
+                        .elements()
+                        .get(0)
+                        .column()
+                        .bar()
+                        .fullColumnWidth(),
+                "width=column 用整列宽（和图标同宽）");
     }
 
     @Test

@@ -270,12 +270,46 @@ public record MenuConfig(
                 }
                 childAlign = Align.CENTER;
             }
-            column = new MenuElement.Column(children, gap, childAlign);
+            MenuElement.Bar bar = parseBar(o, where, warnings);
+            column = new MenuElement.Column(children, gap, childAlign, bar);
         }
 
         return new MenuElement(
                 type, text, file, action, x, y, align, valign, width, height, offsetX, offsetY, scale, color, shadow,
                 sheet, column);
+    }
+
+    /**
+     * 解析列背后的色带 {@code bar}。
+     *
+     * <p>写错了**只警告不改变形状**：色带是装饰，缺了不影响菜单能不能用；但如果作者写了
+     * {@code bar} 却什么都没出现，那条警告就是唯一的解释。
+     */
+    private static MenuElement.Bar parseBar(JsonObject o, String where, List<String> warnings) {
+        if (!o.has("bar") || !o.get("bar").isJsonObject()) return null;
+        JsonObject bar = o.getAsJsonObject("bar");
+        // 注意不能拿「结果 == 默认值」当解析失败的判据：#33000000 本来就等于默认值
+        int color = MenuElement.DEFAULT_BAR_COLOR;
+        String rawColor = JsonUtil.str(bar, "color", null);
+        if (rawColor != null) {
+            Integer parsed = ColorSpec.parse(rawColor);
+            if (parsed == null) {
+                warnings.add(where + ".bar.color 不是合法颜色: '" + rawColor + "' → 已用 20% 黑");
+            } else {
+                color = parsed;
+            }
+        }
+        String raw = JsonUtil.str(bar, "width", "buttons");
+        boolean columnWidth;
+        if ("buttons".equalsIgnoreCase(raw)) {
+            columnWidth = false;
+        } else if ("column".equalsIgnoreCase(raw)) {
+            columnWidth = true;
+        } else {
+            warnings.add(where + ".bar.width 不认识: '" + raw + "'（可用 buttons/column）→ 已用 buttons");
+            columnWidth = false;
+        }
+        return new MenuElement.Bar(color, columnWidth);
     }
 
     private static double fraction(JsonObject o, String key, double def, String where, List<String> warnings) {

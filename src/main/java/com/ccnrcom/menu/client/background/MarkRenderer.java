@@ -7,9 +7,7 @@ package com.ccnrcom.menu.client.background;
 import com.ccnrcom.menu.client.texture.FileTexture;
 import com.ccnrcom.menu.config.MarkSpec;
 import com.ccnrcom.menu.config.MenuConfigIO;
-import com.ccnrcom.menu.ui.Align;
 import com.ccnrcom.menu.ui.MenuGeometry;
-import com.ccnrcom.menu.ui.VAlign;
 import net.minecraft.client.gui.GuiGraphics;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -71,7 +69,7 @@ public final class MarkRenderer {
         int w = spec.width() == MarkSpec.AUTO ? tex.width() : spec.width();
         int h = Math.max(1, Math.round(w * tex.height() / (float) tex.width()));
         MenuGeometry.Rect rect =
-                MenuGeometry.place(spec.x(), spec.y(), Align.CENTER, VAlign.MIDDLE, w, h, screenWidth, screenHeight);
+                MenuGeometry.place(spec.x(), spec.y(), spec.align(), spec.valign(), w, h, screenWidth, screenHeight);
 
         TextureDraw.drawAt(
                 gfx,

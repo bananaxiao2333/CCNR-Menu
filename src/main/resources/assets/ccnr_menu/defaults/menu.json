@@ -31,8 +31,10 @@
     "file": "logo_wide_mono.png",
     "width": 420,
     "opacity": 1.0,
-    "x": 0.5,
-    "y": 0.5,
+    "x": 0.98,
+    "y": 0.95,
+    "align": "right",
+    "valign": "bottom",
     "onMainMenu": false
   },
   "theme": {
@@ -50,13 +52,17 @@
   "elements": [
     {
       "type": "column",
-      "x": 0.04,
+      "x": 0.10,
       "y": 0.5,
       "align": "left",
       "valign": "middle",
       "width": 300,
       "gap": 10,
       "childAlign": "left",
+      "bar": {
+        "color": "#33000000",
+        "width": "buttons"
+      },
       "children": [
         {
           "type": "image",
