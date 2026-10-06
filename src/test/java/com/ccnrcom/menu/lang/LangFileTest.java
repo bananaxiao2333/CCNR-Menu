@@ -47,6 +47,8 @@ class LangFileTest {
         "ccnr_menu.command.status.no_warnings",
         "ccnr_menu.command.status.warnings",
         "ccnr_menu.example.subtitle",
+        "ccnr_menu.command.reset_ok",
+        "ccnr_menu.command.reset_failed",
     };
 
     private static JsonObject load(String lang) {

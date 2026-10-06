@@ -4,5 +4,7 @@
   "ccnr_menu.command.status.header": "=== CCNR-Menu status ===",
   "ccnr_menu.command.status.no_warnings": "  No config warnings.",
   "ccnr_menu.command.status.warnings": "  %s config warning(s):",
-  "ccnr_menu.example.subtitle": "Survival · Story · Tactics"
+  "ccnr_menu.example.subtitle": "Survival · Story · Tactics",
+  "ccnr_menu.command.reset_ok": "Menu config restored to the bundled default (previous file backed up as menu.json.bak)",
+  "ccnr_menu.command.reset_failed": "Failed to restore the default config (see the log)"
 }

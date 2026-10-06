@@ -4,5 +4,7 @@
   "ccnr_menu.command.status.header": "=== CCNR-Menu 状态 ===",
   "ccnr_menu.command.status.no_warnings": "  配置没有警告。",
   "ccnr_menu.command.status.warnings": "  配置警告 %s 条：",
-  "ccnr_menu.example.subtitle": "生存 · 剧情 · 战术配合"
+  "ccnr_menu.example.subtitle": "生存 · 剧情 · 战术配合",
+  "ccnr_menu.command.reset_ok": "菜单配置已恢复为内置默认（原文件已备份为 menu.json.bak）",
+  "ccnr_menu.command.reset_failed": "恢复默认失败（写文件出错，详见日志）"
 }
