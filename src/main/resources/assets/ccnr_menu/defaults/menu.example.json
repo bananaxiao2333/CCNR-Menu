@@ -6,7 +6,10 @@
     "type": "image",
     "file": "background.png",
     "fit": "cover",
-    "opacity": 1.0
+    "opacity": 1.0,
+    "extraLoadingScreens": [
+      "com.example.mymod.MyLoadingScreen"
+    ]
   },
   "mark": {
     "file": "logo_wide_white.png",
@@ -16,9 +19,27 @@
     "y": 0.5,
     "onMainMenu": false
   },
+  "bootLog": {
+    "enabled": true,
+    "builtin": "ubuntu",
+    "spinner": [
+      "A start job is running for Hold until boot process finishes up",
+      "[  OK  ] Reached target Cloud-init target"
+    ],
+    "spacingMs": 95,
+    "scale": 1.0,
+    "x": 0.02,
+    "y": 0.04,
+    "align": "left",
+    "valign": "top",
+    "meter": "systemd",
+    "spinnerWidth": 12,
+    "onAllScreens": true
+  },
   "theme": {
     "buttonStyle": "solid",
     "backdrop": "#66000000",
+    "buttonBackdrop": "#1A000000",
     "buttonFill": "#B0121216",
     "buttonFillHover": "#D01E1E26",
     "buttonBorder": "#FF3C3C46",

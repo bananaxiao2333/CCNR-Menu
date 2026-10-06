@@ -39,11 +39,17 @@ jobs:
           name: ccnr_menu
           path: build/libs/*.jar
 
-      - name: Attach jars to GitHub Release (tags only)
-        if: startsWith(github.ref, 'refs/tags/')
+      # 版本号唯一真源是 gradle.properties，所以「合进 main」就等于发版：
+      # tag 不存在就顺手建，不需要谁记得手动打 tag（手动打 tag 走同一条路，--clobber 保证幂等）。
+      # PR 不发版。
+      - name: Publish GitHub Release (version from gradle.properties)
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION=$(grep -E "^mod_version=" gradle.properties | cut -d= -f2)
-          gh release upload "${GITHUB_REF_NAME}" \
-            "build/libs/ccnr_menu-${VERSION}.jar" --clobber
+          TAG="v${VERSION}"
+          JAR="build/libs/ccnr_menu-${VERSION}.jar"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --title "CCNR-Menu ${VERSION}" --generate-notes
+          gh release upload "$TAG" "$JAR" --clobber
+          echo "已发布 $TAG → $(basename "$JAR")"

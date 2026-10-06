@@ -25,7 +25,8 @@
       "slides/09.jpg",
       "slides/10.jpg",
       "slides/11.jpg"
-    ]
+    ],
+    "extraLoadingScreens": []
   },
   "mark": {
     "file": "logo_wide_mono.png",
@@ -35,9 +36,23 @@
     "y": 0.5,
     "onMainMenu": false
   },
+  "bootLog": {
+    "enabled": false,
+    "builtin": "ubuntu",
+    "spacingMs": 95,
+    "scale": 1.0,
+    "x": 0.02,
+    "y": 0.04,
+    "align": "left",
+    "valign": "top",
+    "meter": "systemd",
+    "spinnerWidth": 12,
+    "onAllScreens": true
+  },
   "theme": {
     "buttonStyle": "text",
     "backdrop": "#4D000000",
+    "buttonBackdrop": "#1A000000",
     "buttonFill": "#B0121216",
     "buttonFillHover": "#D01E1E26",
     "buttonBorder": "#FF3C3C46",

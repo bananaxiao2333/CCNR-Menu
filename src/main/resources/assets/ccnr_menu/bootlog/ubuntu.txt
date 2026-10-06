@@ -1,0 +1,56 @@
+# CCNR-Menu 启动日志背景 · 内置驱动（Ubuntu 6.8.0-45 风格）
+#
+# 格式：每行 "[状态] 正文"，状态可省（省略 = info，不加标记）。
+#   状态：kernel / ok / run / fail / info / accent
+#   kernel 行的正文里带不带 "[    0.000000] " 都行——带上的话那个数字会被当成
+#   「原文秒数」，动画里的真实时刻 = 秒数 × kernelSpacing，而屏幕上打出来的时间戳
+#   永远由当前时刻现算（照抄原文的话一屏全是 0.000000，一眼假）。
+# 以 # 开头的行为注释；空行忽略。
+#
+# 换一份日志：把这个文件复制成 config/ccnr_menu/bootlog/mine.txt，
+# 然后把 menu.json 里的 bootLog.file 指向它。模组不改你的文件。
+
+[kernel] [    0.000000] Linux version 6.8.0-45-generic (buildd@lcy02-amd64-100) (x86_64-linux-gnu-gcc-13.2.0 (Ubuntu 13.2.0-23ubuntu1) 13.2.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #45-Ubuntu SMP PREEMPT_DYNAMIC
+[kernel] [    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-45-generic root=UUID=8f2a9c41-6b7e-4d02-9c1f-3e5b7a0d2c88 ro quiet splash vt.handoff=7
+[kernel] [    0.000000] BIOS-provided physical RAM map:
+[kernel] [    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+[kernel] [    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+[kernel] [    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+[kernel] [    0.000000] NX (Execute Disable) protection: active
+[kernel] [    0.000000] DMI: ASUSTeK COMPUTER INC. ROG STRIX X570-I GAMING/X570-I GAMING, BIOS 5003 01/13/2024
+[kernel] [    0.021000] tsc: Detected 3800.000 MHz processor
+[kernel] [    0.092000] Memory: 32548640K/33470848K available (16384K kernel code, 2764K rwdata, 12648K rodata)
+[kernel] [    0.118000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=16, Nodes=1
+[kernel] [    0.131000] rcu: Preemptible hierarchical RCU implementation.
+[kernel] [    0.204000] smpboot: CPU0: AMD Ryzen 9 5950X 16-Core Processor (family: 0x19, model: 0x21)
+[kernel] [    0.312000] ACPI: Core revision 20230628
+[kernel] [    0.401000] pci 0000:00:00.0: [1022:1480] type 00 class 0x060000
+[kernel] [    0.498000] pci 0000:00:01.1: [1022:1483] type 01 class 0x060400
+[kernel] [    0.612000] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.08
+[kernel] [    0.744000] nvme nvme0: 8/0/0 default/read/poll queues
+[kernel] [    0.861000] EXT4-fs (nvme0n1p2): mounted filesystem with ordered data mode. Quota mode: none.
+[kernel] [    1.020000] systemd[1]: systemd 255.4-1ubuntu8.4 running in system mode (+PAM +AUDIT +SELINUX +APPARMOR)
+[ok] Reached target Basic System.
+[ok] Started Journal Service.
+[run] Starting Load Kernel Modules.
+[ok] Finished Load Kernel Modules.
+[ok] Mounted Kernel Configuration File System.
+[ok] Started udev Kernel Device Manager.
+[ok] Reached target Local FS.
+[ok] Started Rule-based Manager for Device Events and Files.
+[run] Starting Network Manager.
+[ok] Started Authorization Manager.
+[ok] Started Daemon for power management.
+[ok] Started D-Bus System Message Bus.
+[ok] Started Network Manager 1.46.0.
+[ok] Started User Login Management.
+[ok] Started Permit User Sessions.
+[ok] Started Record System Boot/Shutdown in UTMP.
+[ok] Started GNOME Display Manager.
+[ok] Reached target Graphical Interface.
+[fail] Failed to start ccnr-agent.service — exit code 203/EXEC
+[info] nginx.service active (running) since Thu 2026-10-08 03:14:22 CST
+[info] mysql.service active (running) since Thu 2026-10-08 03:14:19 CST
+[info] ccnr-rp.service active (running) since Thu 2026-10-08 03:14:24 CST
+[ok] Reached target Multi-User System.
+[accent] CCNR-Menu · 启动完成

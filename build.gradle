@@ -53,6 +53,7 @@ repositories {
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
 
+
     // 本模组**刻意没有外部模组依赖**（无 MCEF / 无原生库）：动画背景靠 JDK 自带的
     // ImageIO（GIF 解码）+ Minecraft 自己的贴图管线实现，见 docs/02。
 
@@ -72,7 +73,12 @@ jar {
                 'Implementation-Title'    : project.name,
                 'Implementation-Version'  : project.version,
                 'Implementation-Vendor'   : mod_group_id,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                // 混入配置**只能**在这里声明。写进 mods.toml 是无效的：
+                // 那个键不在顶层（`[[mods]]` / `[[dependencies.*]]` 之后的裸键都属于上面那张表），
+                // 而且被**静默忽略**——症状是混入一条都不生效，日志里既没有生效提示也没有报错。
+                // 实例里每个能用的模组都走 manifest，见 AGENTS.md「构建环境」那条。
+                'MixinConfigs'            : 'ccnr_menu.mixins.json'
         ])
     }
 }

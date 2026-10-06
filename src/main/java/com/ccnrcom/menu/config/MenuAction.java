@@ -81,6 +81,25 @@ public record MenuAction(Kind kind, String value) {
     private static final int MAX_URL_LENGTH = 2048;
 
     /**
+     * 动作的**显示标签**（日志用）：{@code connect:example.com} / {@code screen:multiplayer}。
+     *
+     * <p>为什么放在这里而不是调用方拼：日志里那一行是玩家唯一能核对的线索
+     * （「我点的那个按钮到底做了什么」），标签措辞漂了就等于这条线索废了。
+     * 纯函数，可直接单测。
+     */
+    public String label() {
+        String v = value == null ? "" : value;
+        return switch (kind) {
+            case SCREEN -> "screen:" + v;
+            case CONNECT -> "connect:" + v;
+            case URL -> "url:" + v;
+            case COPY -> "copy";
+            case QUIT -> "quit";
+            case NONE -> "none";
+        };
+    }
+
+    /**
      * 解析动作。
      *
      * <p>支持三种写法，后两种是为了让配置读起来更短：

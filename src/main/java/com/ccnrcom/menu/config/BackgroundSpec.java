@@ -29,6 +29,9 @@ import java.util.Locale;
  *     帧时长由 GIF 自身的 {@code delayTime} 决定）
  * @param slides 轮播的图片列表（仅 {@code SLIDESHOW}）
  * @param slide 轮播的节奏与运镜（仅 {@code SLIDESHOW}）
+ * @param extraLoadingScreens 追加的「加载类界面」全限定类名（背景会连它们一起接管）。
+ *     默认空表：内置名单覆盖了原版那几个（创建世界 / 加载地形 / 连接服务器），
+ *     这里留给别的模组引入的加载界面——那些界面上同样是「没有玩家要看的世界，却露出泥土」。
  */
 public record BackgroundSpec(
         Kind kind,
@@ -39,7 +42,8 @@ public record BackgroundSpec(
         int color,
         SpriteSheet sheet,
         List<String> slides,
-        SlideSpec slide) {
+        SlideSpec slide,
+        List<String> extraLoadingScreens) {
 
     /** 背景类型。 */
     public enum Kind {
@@ -94,7 +98,8 @@ public record BackgroundSpec(
             0xFF101014,
             SpriteSheet.DEFAULT,
             List.of(),
-            SlideSpec.DEFAULT);
+            SlideSpec.DEFAULT,
+            List.of());
 
     public BackgroundSpec {
         kind = kind == null ? Kind.VANILLA : kind;
@@ -104,6 +109,7 @@ public record BackgroundSpec(
         sheet = sheet == null ? SpriteSheet.DEFAULT : sheet;
         slides = slides == null ? List.of() : List.copyOf(slides);
         slide = slide == null ? SlideSpec.DEFAULT : slide;
+        extraLoadingScreens = extraLoadingScreens == null ? List.of() : List.copyOf(extraLoadingScreens);
     }
 
     /** 是否需要一个外部素材文件。 */
@@ -188,7 +194,8 @@ public record BackgroundSpec(
             warnings.add("background: sheet 背景的 cols×rows 只有一帧，不会有动画效果（cols=" + sheet.cols() + ", rows=" + sheet.rows()
                     + "）");
         }
-        return new BackgroundSpec(kind, file, fit, tint, opacity, color, sheet, slides, slide);
+        return new BackgroundSpec(
+                kind, file, fit, tint, opacity, color, sheet, slides, slide, parseExtraLoadingScreens(o, warnings));
     }
 
     /**
@@ -197,6 +204,37 @@ public record BackgroundSpec(
      * <p>单张图片的轮播是合法的（等于一个会缓慢放大/偏移的静态背景），所以不报警告；
      * 但**空列表**必须报——那会画出一片纯色，而作者以为自己配了轮播。
      */
+    /**
+     * 解析 {@code background.extraLoadingScreens}：追加接管的「加载类界面」全限定类名。
+     *
+     * <p>校验只做「是不是个像类名的字符串」——真正的存在性由游戏在运行时决定，
+     * 写错的后果只是那一项不生效；这里不做反射加载（那会在启动期把不存在的类引爆）。
+     */
+    private static List<String> parseExtraLoadingScreens(JsonObject o, List<String> warnings) {
+        List<String> out = new ArrayList<>();
+        if (o == null) return out;
+        JsonElement raw = o.get("extraLoadingScreens");
+        if (raw == null) return out;
+        if (!raw.isJsonArray()) {
+            warnings.add("background.extraLoadingScreens 必须是字符串数组（界面全限定类名）→ 已忽略");
+            return out;
+        }
+        for (JsonElement item : raw.getAsJsonArray()) {
+            if (!item.isJsonPrimitive()) {
+                warnings.add("background.extraLoadingScreens 里有非字符串项 → 已跳过");
+                continue;
+            }
+            String name = item.getAsString().trim();
+            if (name.isEmpty()) continue;
+            if (!name.contains(".")) {
+                warnings.add("background.extraLoadingScreens 里的 '" + name + "' 不是全限定类名 → 已跳过");
+                continue;
+            }
+            out.add(name);
+        }
+        return out;
+    }
+
     private static List<String> parseSlides(JsonObject o, Kind kind, List<String> warnings) {
         List<String> slides = new ArrayList<>();
         JsonElement raw = o == null ? null : o.get("slides");

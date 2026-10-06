@@ -18,6 +18,9 @@ import java.util.List;
  * 因此默认压一层 40% 的黑，而不是靠作者自己记得调。
  *
  * @param backdrop 背景之上、文字之下的压暗层（{@code #00000000} 表示不压）
+ * @param buttonBackdrop 按钮的**底衬**：画在按钮矩形里、文字之下的一层薄黑。
+ *     {@code text} 外观（无底色纯文字）用它防止"背景太花导致文字看不清"——
+ *     它与 {@code backdrop}（全屏压暗层）是两种东西：只压按钮自己的矩形，不影响别处。
  * @param buttonFill 按钮底色
  * @param buttonFillHover 按钮悬停底色
  * @param buttonBorder 按钮描边
@@ -30,6 +33,7 @@ import java.util.List;
  */
 public record MenuThemeSpec(
         int backdrop,
+        int buttonBackdrop,
         int buttonFill,
         int buttonFillHover,
         int buttonBorder,
@@ -51,6 +55,8 @@ public record MenuThemeSpec(
      */
     public static final MenuThemeSpec DEFAULT = new MenuThemeSpec(
             0x66000000,
+            // 10% 黑：默认值，防"背景太花把按钮文字淹没"。可以通过写 #00000000 关掉
+            0x1A000000,
             0xB0121216,
             0xD01E1E26,
             0xFF3C3C46,
@@ -79,6 +85,7 @@ public record MenuThemeSpec(
         }
         return new MenuThemeSpec(
                 color(o, "backdrop", DEFAULT.backdrop(), warnings),
+                color(o, "buttonBackdrop", DEFAULT.buttonBackdrop(), warnings),
                 color(o, "buttonFill", DEFAULT.buttonFill(), warnings),
                 color(o, "buttonFillHover", DEFAULT.buttonFillHover(), warnings),
                 color(o, "buttonBorder", DEFAULT.buttonBorder(), warnings),

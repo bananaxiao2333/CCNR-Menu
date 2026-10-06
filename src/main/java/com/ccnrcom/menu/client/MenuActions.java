@@ -4,7 +4,9 @@
  */
 package com.ccnrcom.menu.client;
 
+import com.ccnrcom.menu.client.background.ScreenBackgrounds;
 import com.ccnrcom.menu.config.MenuAction;
+import com.ccnrcom.menu.ui.BootLogKind;
 import net.minecraft.Util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.AccessibilityOptionsScreen;
@@ -18,6 +20,7 @@ import net.minecraft.client.gui.screens.multiplayer.SafetyScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
+import net.minecraft.network.chat.Component;
 import net.minecraftforge.client.gui.ModListScreen;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -46,22 +49,92 @@ public final class MenuActions {
      * @param parent 当前屏幕（作为下一个屏幕的返回父级）
      */
     public static void run(Screen parent, MenuAction action) {
+        run(parent, action, null);
+    }
+
+    /**
+     * 执行动作，并把「点了什么按钮」记进启动日志。
+     *
+     * <p>为什么要记这一步：日志那一层在玩家眼里是「这台机器在做什么」。按下按钮却什么都没发生
+     * 时，那一行就是唯一能证明「动作真的被触发了」的证据——`NONE` 也要记，
+     * 因为「按了没反应」正是最需要证据的那种情况。
+     *
+     * @param buttonLabel 按钮文案（可为 {@code null}：调用方拿不到文案时只记动作标签）
+     */
+    public static void run(Screen parent, MenuAction action, Component buttonLabel) {
         if (action == null) return;
         Minecraft minecraft = Minecraft.getInstance();
+        String who = buttonLabel == null ? action.label() : buttonLabel.getString() + " → " + action.label();
+        log(who, BootLogKind.INFO);
         switch (action.kind()) {
             case NONE -> {
                 // action:"none" 的按钮刻意什么都不做——这是**写出来的**行为（例如占位一张还没做的子菜单），
-                // 不是解析失败后的静默降级
+                // 不是解析失败后的静默降级。上面那一行日志正是为了让它「看得出来被点了」
             }
-            case QUIT -> minecraft.stop();
+            case QUIT -> {
+                spin(tr("ccnr_menu.log.quit"));
+                minecraft.stop();
+            }
             case SCREEN -> {
                 Screen target = screenFor(minecraft, parent, action.value());
-                if (target != null) minecraft.setScreen(target);
+                if (target != null) {
+                    log(tr("ccnr_menu.log.opening", action.value()), BootLogKind.ACCENT);
+                    minecraft.setScreen(target);
+                }
             }
             case CONNECT -> connect(minecraft, parent, action.value());
-            case URL -> openUri(action.value());
-            case COPY -> minecraft.keyboardHandler.setClipboard(action.value());
+            case URL -> {
+                openUri(action.value());
+                log(action.value(), BootLogKind.ACCENT);
+            }
+            case COPY -> log(action.value(), BootLogKind.ACCENT);
         }
+    }
+
+    /** 按钮按下时的回调：带上按钮文案一起记日志。 */
+    public static Runnable pressCallback(Screen parent, MenuAction action, Component buttonLabel) {
+        return () -> run(parent, action, buttonLabel);
+    }
+
+    /** 连上服务器时由 {@link ClientEvents} 回调（成功/失败由网络事件决定，不在这里猜）。 */
+    public static void onJoined(String address) {
+        String label = address == null || address.isBlank() ? "server" : address;
+        spinOk(tr("ccnr_menu.log.joined", label));
+    }
+
+    /** 连接失败/断开。 */
+    public static void onDisconnected() {
+        spinFail(tr("ccnr_menu.log.disconnected"));
+    }
+
+    /** 世界数据加载开始（原版加载界面出现的时刻）。 */
+    public static void onLoadingWorld() {
+        spin(tr("ccnr_menu.log.loading_world"));
+    }
+
+    // ------------------------------------------------------------------
+    // 日志与文案：这一层只做转发，没开启动日志时全部是空操作
+    // ------------------------------------------------------------------
+
+    private static void log(String text, BootLogKind kind) {
+        ScreenBackgrounds.logEvent(text, kind);
+    }
+
+    private static void spin(String text) {
+        ScreenBackgrounds.spinEvent(text);
+    }
+
+    private static void spinOk(String text) {
+        ScreenBackgrounds.spinOk(text);
+    }
+
+    private static void spinFail(String text) {
+        ScreenBackgrounds.spinFail(text);
+    }
+
+    /** 取翻译文本；键缺失时原样返回键名（与模组其它地方的文案取法一致）。 */
+    private static String tr(String key, Object... args) {
+        return Component.translatable(key, args).getString();
     }
 
     /**
@@ -92,11 +165,14 @@ public final class MenuActions {
     /** 直连服务器（地址合法性已在解析阶段校验过）。 */
     private static void connect(Minecraft minecraft, Screen parent, String address) {
         try {
+            // 先开进度条：连接是**有等待过程**的事，日志那一层要像系统启动那样显示"进行中"
+            spin(tr("ccnr_menu.log.joining", address));
             ServerAddress parsed = ServerAddress.parseString(address);
             // lan=false：这不是局域网服务器，标记错会让服务器列表里出现一条假的局域网记录
             ServerData data = new ServerData(address, address, false);
             ConnectScreen.startConnecting(parent, minecraft, parsed, data, false);
         } catch (Exception e) {
+            spinFail(tr("ccnr_menu.log.joining", address) + " — " + e.getMessage());
             LOGGER.warn("[CCNR-Menu] 直连失败: {} —— {}", address, e.toString());
         }
     }

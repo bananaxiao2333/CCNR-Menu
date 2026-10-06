@@ -216,7 +216,7 @@ public final class MenuScreen extends Screen {
                     text(element),
                     theme,
                     element.color(),
-                    () -> MenuActions.run(this, element.action())));
+                    () -> MenuActions.run(this, element.action(), text(element))));
             case LABEL -> {
                 if (rect.w() > 0 && rect.h() > 0) labels.add(new PlacedLabel(element, text(element), rect));
             }
@@ -323,7 +323,7 @@ public final class MenuScreen extends Screen {
                 Component.translatable(langKey),
                 theme,
                 MenuElement.NO_COLOR,
-                () -> MenuActions.run(this, action));
+                () -> MenuActions.run(this, action, Component.translatable(langKey)));
     }
 
     // ------------------------------------------------------------------

@@ -442,4 +442,31 @@ class MenuConfigTest {
                 MenuConfig.parse(parse("{\"applyToAllScreens\":false}"), warnings)
                         .applyToAllScreens());
     }
+
+    @Test
+    @DisplayName("按钮底衬默认 10% 黑：text 外观没有底色，背景一花文字就淹没")
+    void buttonBackdropDefault() {
+        assertEquals(0x1A000000, MenuThemeSpec.DEFAULT.buttonBackdrop(), "默认底衬应当是 10% 黑");
+        // 发布出去的两份配置也必须带上它，否则老玩家升级后按钮仍是裸文字
+        for (String path :
+                List.of("/assets/ccnr_menu/defaults/menu.json", "/assets/ccnr_menu/defaults/menu.example.json")) {
+            MenuConfig config = MenuConfig.parse(resource(path), new ArrayList<>());
+            assertEquals(0x1A000000, config.theme().buttonBackdrop(), path + " 的 theme.buttonBackdrop 应当与默认值一致");
+        }
+    }
+
+    @Test
+    @DisplayName("bootLog 的已废弃字段（allScreensAlign / switchMs）不再出现在发布配置里")
+    void shippedConfigsHaveNoDeprecatedBootLogFields() throws java.io.IOException {
+        for (String path :
+                List.of("/assets/ccnr_menu/defaults/menu.json", "/assets/ccnr_menu/defaults/menu.example.json")) {
+            // 直接在**原始文本**里找：解析完再 toString 会丢掉已经不再被读取的键，
+            // 那样这条门禁就成了「永远绿」的摆设
+            String raw = java.nio.file.Files.readString(
+                            java.nio.file.Path.of("src/main/resources" + path), java.nio.charset.StandardCharsets.UTF_8)
+                    .replace("\"", "");
+            assertFalse(raw.contains("allScreensAlign"), path + " 仍带着已废弃的 allScreensAlign");
+            assertFalse(raw.contains("switchMs"), path + " 仍带着已废弃的 switchMs");
+        }
+    }
 }

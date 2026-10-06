@@ -21,6 +21,17 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 ./gradlew compileJava        # 只验语法，最快
 ```
 
+**要读原版实现时反编译运行时 jar**（`javap` 看签名，vineflower 看源码）：
+
+```bash
+SRG=~/.minecraft  # 本机是 /Users/bananaxiao/Documents/MC/.minecraft
+JAR=$SRG/libraries/net/minecraft/client/1.20.1-20230612.114412/client-1.20.1-20230612.114412-srg.jar
+javap -p -c -classpath "$JAR" net.minecraft.client.gui.screens.Screen        # SRG 名 + 字节码
+java -jar vineflower.jar -dgs=1 "$JAR" /tmp/mcdc                             # 可读源码（官方名）
+```
+
+注意 `forge-*-sources.jar` 里**只有 patch 文件**，没有 Minecraft 源码；要真源码就反编译上面那个 jar。
+
 ## 版本号（规范全文见 docs/04）
 
 - 格式 `<主版本>.<功能批次>.<修订号>`；**唯一真源**是 `gradle.properties` 的 `mod_version`。
@@ -36,18 +47,36 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 - **接管主菜单的方式是事件，不是 mixin**：`ScreenEvent.Opening` + `setNewScreen`
   （`TitleScreenHook`）。不写 mixin 是刻意的——它少一类「开发环境正常、打包后静默失效」的故障，
   也不会与别人对 `TitleScreen` 的 mixin 打架。
+- **全项目只有两处例外，都是泥土的收口处**：
+  `mixin/ScreenBackgroundMixin`（`Screen.renderDirtBackground` 里那一次整屏 blit）与
+  `mixin/SelectionListBackgroundMixin`（`AbstractSelectionList.render` 自己画的那层泥土——
+  `SelectWorldScreen` 这类界面**不调** `renderBackground()`，背景全靠列表画）。
+  为什么非写混入不可见 docs/02 §1.4——加载类界面自己画泥土、也不调 `super.render()`，
+  三条事件路都接不到。写混入时必须守三条：
+  ① **方法名用 SRG 名 + `@Mixin(remap = false)`**（不依赖 refmap）；
+  ② **回调参数个数/顺序必须与目标的形参一一对应**；
+  ③ **生效时打一条 INFO**。
+  SRG 名与描述符**一律对着运行时 jar 查**（`javap -p` 打在
+  `.minecraft/libraries/net/minecraft/client/*/*-srg.jar` 上），不要凭印象写——
+  0.9.0 把 10 参的 `m_280398_` 写成了 11 参的 `m_280411_`，结果是**整条混入静默失效**：
+  没有日志、没有报错、泥土照旧。界面层用 `m_280398_`（10 参），列表层用 `m_280163_`（9 参）。
+- **「某个界面还是泥土」不许靠猜**：两个混入对每个界面类各记一行（接管与不接管都记，
+  不接管那行带 `enabled / applyToAllScreens / 世界内 / 加载类` 四项判据）。
+  这四种成因在屏幕上长得一模一样，日志是唯一能分辨的地方。
+  一帧只画一层，判据是 `GuiGraphics` 的对象身份（`ScreenBackgrounds.alreadyDrawnThisFrame`）——
+  `GameRenderer.render` 每帧新建一个，所以对象身份就是帧号；没有它的后果是压暗层与水印叠两遍。
 - **背景有两个绘制点、一份实现**：`MenuScreen.render`（自己的菜单）与
-  `ScreenBackgroundHook`（`ScreenEvent.Init.Post` → 挂一件 `ScreenBackgroundRenderable`，
-  原版泥土界面）。
+  `ScreenBackgroundMixin`（原版泥土界面）。
   两者都调 `ScreenBackgrounds.render(...)`，范围判定都走纯类 `BackgroundScope`。
-  背景实例按「参数 + 素材修改时间」的指纹共享，**进入世界**时释放。
+  背景实例按「参数 + 素材修改时间」的指纹共享，**进入世界**时释放（`ClientEvents.onLoggingIn`）。
 - 包布局与数据流见 [docs/00](docs/00-总览.md) §3/§4；背景方案取舍见 [docs/02](docs/02-背景与动画.md)；
   配置字段全表见 [docs/03](docs/03-菜单配置.md)。
 - **无任何外部模组依赖**（不引用 CCNR-RP / CCNR-PM / CCNR-Com，也不依赖 MCEF）。
   动画 GIF 用 JDK 自带的 `ImageIO`；精灵图走原版贴图管线。
-- 纯类（可直接 JUnit 测）：`ui` 包全部、`gif` 包全部、`config` 的
+- 纯类（可直接 JUnit 测）：`ui` 包全部（含启动日志的 `BootLogTimeline` / `BootLogLines` /
+  `BootLogKind` / `BootLogRow` / `BootLogSnapshot` / `BootMeter`）、`gif` 包全部、`config` 的
   `MenuConfig` / `BackgroundSpec` / `SlideSpec` / `MarkSpec` / `MenuElement` / `MenuAction` /
-  `MenuThemeSpec` / `MenuDefaults`。
+  `MenuThemeSpec` / `MenuDefaults` / `BootLogSpec`。
 
 ## 开发纪律（完整版见 docs/01）
 
@@ -70,6 +99,13 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 
 - **构建环境**：需 JDK 21（系统默认不是它，务必 export JAVA_HOME），且 `GRADLE_USER_HOME`
   必须指向共享缓存（Forge 1.20.1 的 userdev 产物都在那里，指错会触发长时间重新反编译）。
+- **混入配置只认 `META-INF/MANIFEST.MF` 的 `MixinConfigs`**（由 `build.gradle` 的 `jar.manifest`
+  写入）。**不要写进 `mods.toml`**：那一行如果排在 `[[mods]]` / `[[dependencies.*]]` 之后，
+  TOML 会把它算进上面那张表，Forge 读顶层键读不到，于是**静默失效**——
+  混入一条都不执行，`required: true` 也不触发，日志里既没有生效提示也没有报错。
+  想确认是否生效：`unzip -p <jar> META-INF/MANIFEST.MF | grep MixinConfigs`。
+  另有一条自查要点：**`已接管泥土背景: <界面>` 那条 INFO 是唯一的正面证据**，
+  一条都看不到就是混入没注册（或那个界面压根没画泥土）——别去看「屏幕上有没有变」，那两者长得一样。
 - **测试门控**：`build` **不跑测试**；验收必须显式 `-PrunTests`。
   GIF 相关测试用 headless AWT（`build.gradle` 已设 `java.awt.headless=true`），不需要显示设备。
 - **`blit` 的重载必须带贴图尺寸**：`blit(ResourceLocation, x, y, w, h)` 那个 7 参数重载
@@ -92,9 +128,9 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
   代码与内置配置里出现的键名并要求两个语言包都有。
 - **`MenuAction.SCREENS` 与 `MenuActions.screenFor` 必须同步**：两处都不编译失败，
   `MenuScreenMappingTest` 是唯一的守卫。
-- **原版界面的背景不靠事件、靠那件 Renderable**：`ScreenEvent.BackgroundRendered` 理论上
-  在原版画完之后才发、盖上去即可，但实测对所有二级界面都不生效；现在的注入点见下面那条
-  「原版界面的背景注入点」。不要因为「事件更正统」就把 Renderable 那条删掉。
+- **原版界面的背景也不靠事件、靠那一处混入**：`ScreenEvent.BackgroundRendered` 只在
+  `renderBackground()` 里发（直接调 `renderDirtBackground()` 的界面接不到），
+  `ScreenEvent.Render.Pre/Post` 在 1.20.1 里**根本没接线**。现在的注入点见下面那条。
 - **世界内的界面永不接管背景**：`BackgroundScope` 里那条 `inWorld` 判据不能删——
   否则开背包时动画背景会盖住世界（`BackgroundScopeTest` 专门守着这一条）。
 - **容器子元素的 `x`/`y` 不生效**：位置由 `MenuGeometry.stack` 决定，只有 `offsetX`/`offsetY` 还有效。
@@ -119,6 +155,10 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 - **`mark` 画在压暗层之上、原版控件之下**（`ScreenBackgrounds.render` 的顺序是
   背景 → 压暗层 → 标志）：画在压暗层下面会被压成灰的，跟没加载出来一样；
   画在原版控件上面就会盖住设置页面的选项列表。
+  **它的显示判据只能是瞬态**：现在用 `ScreenBackgrounds.waiting()`（进度条真的开着）。
+  曾经用「日志里有没有事件行」（`feed.size() > 0`）——那个计数**只增不减**，而任何非主菜单界面
+  都得先按一次主菜单按钮才能到达，于是 `mark.onMainMenu: false` 这块 logo **从来没显示过**。
+  改这里的判据前先问一句：这个量会自己降回 0 吗？不会就别拿它当「正在发生」用。
 - **`theme.buttonStyle: "text"` 下按钮不写 `width` 时宽度贴着文字**（`MenuScreen.buttonWidth`）：
   纯文字按钮的热区看不见，留 200 宽的隐形矩形会让鼠标停在文字右边也变色。
   另外 `text` 外观的**焦点提示是文字下划线**——「焦点与悬停必须用两个视觉通道」这条纪律
@@ -158,17 +198,32 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
   ② **贴图必须是线性过滤**——`DynamicTexture` 默认最近邻，会把亚像素位移重新吸附回整像素；
   轮播贴图建好后要调 `FileTexture.smooth()`（不开 mipmap：`DynamicTexture` 只分配了第 0 级）。
   改这两处时别只看「位置算对了」，算对了也一样抖。
-- **原版界面的背景注入点是 `ScreenEvent.Init.Post` + `screen.renderables.add(0, ...)`**
-  （`ScreenBackgroundRenderable`），不是 `ScreenEvent.BackgroundRendered`：后者实测对所有二级界面
-  都不生效（日志无错、事件也确实会被原版 `renderDirtBackground()` 发出）。位置必须是下标 0——
-  原版顺序是「`renderBackground()` 画泥土 → 原版控件遍历 renderables」，插到末尾会盖住所有控件。
-  `init()` 会清空 `renderables`，所以每次重建界面都要重新挂。`ScreenBackgroundHook` 对每种界面
-  打一行 INFO（`已接管界面背景` / `未接管界面背景（原因）`）——这是「泥土没被换掉」唯一能自查的
-  线索，别把那一行删了。
+- **原版界面的背景注入点是 `Screen.renderDirtBackground` 里那一次整屏 blit**
+  （`ScreenBackgroundMixin`）——界面 `render()` 的第一句几乎都是 `renderBackground()`，
+  换掉那一次贴图，后面画的一切自然压在背景上。
+  **别再往 `renderables` 塞「画背景」的 Renderable**：`Screen.addWidget(T)` **不往
+  `renderables` 里加**，而界面自己的列表（`JoinMultiplayerScreen` / `SelectWorldScreen`）
+  走的就是 `addWidget`、并且在 `super.render()` **之前**手工绘制，所以那件 Renderable
+  会在列表**之后**执行，把列表整个盖住——症状是「**列表能点，但一片空白**」，0.9.0 正是这样翻车的。
+  **`SelectWorldScreen` 那种界面不调 `renderBackground()`**，泥土来自列表自己画的那层，
+  由 `SelectionListBackgroundMixin` 负责——两个来源都要拦，只拦一个就会「有的界面换了、有的没换」。
 - **背景指纹（`ScreenBackgrounds.signatureOf`）必须覆盖所有影响画面的输入**：背景参数
   （含 `slides` 与 `SlideSpec`）、**每一个**素材文件的 mtime（走 `assetFiles()`，轮播要逐张带上）、
   `config.theme()`（压暗层跟着它走）、以及 `config.mark()`（标志的贴图归同一个实例持有）。
   漏字段的症状是「改了配置却不变」；`SlideSpec` / `MarkSpec` 都是纯数据（int/枚举/字符串），
   直接 `append` 它们安全，但**自己写的数组字段不要用 `toString()`**——
   数组的 `toString` 是身份哈希，同一个配置重建两次会得到不同的指纹。
+- **绘制层级是契约（下往上）：背景图 → 启动日志 → 压暗层 → 标志 → 元素（图标/文字/按钮）。**
+  顺序写死在 `ScreenBackgrounds.render`，`MenuScreen.render` 只画元素。启动日志**不能**做成
+  一种背景类型：那样它在 `BackgroundFactory` 里，元素就永远只能压在它上面，
+  「图标盖住日志」这个层级表达不了。
+- **背景的接管范围是四档，判定只在 `BackgroundScope`**：主菜单（总是）/ **加载类界面（总是）** /
+  泥土界面（看 `applyToAllScreens`）/ 世界内界面（永不）。第三档不能只看 `level != null`——
+  创建世界时世界对象在**地形加载完之前**就已存在，只看它会让进度界面露出泥土（实机踩过）。
+  加载类白名单有上限断言，加成员前先问「玩家需要看清后面的世界吗」；别的模组的加载界面走
+  `background.extraLoadingScreens`（全限定名精确匹配）。
+- **启动日志的内核时间戳只能有一份**：驱动文件里的 `[    0.000000]` 是**节奏依据**（几秒出现），
+  屏幕上那份由时刻表现算。改这条链时注意三处配套：`BootLogKind.KERNEL.marker()` 必须是空串、
+  `BootLogLines.parse` 必须把原文秒数**原样**留给 `Builder.line`、`Builder.line` 负责摘掉它。
+  漏一处就是行首两个时间戳（`[    0.000000] [    3.500000] …`），而且编译、运行都不报错。
 - **不要改动 CCNR-RP / CCNR-PM / CCNR-Com**：所有变更限本仓库。
