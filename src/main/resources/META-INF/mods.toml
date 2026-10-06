@@ -1,0 +1,33 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="ccnr_menu"
+version="${file.jarVersion}"
+displayName="CCNR-Menu"
+authors="CCNR"
+description='''CCNR 主菜单自定义模组（Forge 1.20.1，纯客户端）
+
+用一份 JSON 配置改掉主菜单：背景（静态图 / 动画 GIF / 精灵图序列帧 / 纯色 / 原版全景图）、
+配色、标题、按钮的文字·位置·动作。改完执行 /ccnr_menu reload 即可生效，不用重新编译。
+
+- 零外部依赖：动画 GIF 用 JDK 自带的 ImageIO 解码，精灵图走原版贴图管线，
+  不需要 MCEF 之类的浏览器引擎，也不需要任何原生库
+- 只改客户端，服务端装不装都一样；enabled=false 立刻回到纯原版主菜单
+
+配置与背景文件都在 config/ccnr_menu/。执行 /ccnr_menu status 可以看到当前读到的一切。'''
+
+[[dependencies.ccnr_menu]]
+    modId="forge"
+    mandatory=true
+    versionRange="[47,)"
+    ordering="NONE"
+    side="CLIENT"
+
+[[dependencies.ccnr_menu]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="[1.20.1,1.21)"
+    ordering="NONE"
+    side="CLIENT"

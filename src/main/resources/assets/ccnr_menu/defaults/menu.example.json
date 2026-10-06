@@ -1,0 +1,82 @@
+{
+  "enabled": true,
+  "vanillaButtons": false,
+  "applyToAllScreens": true,
+  "background": {
+    "type": "image",
+    "file": "background.png",
+    "fit": "cover",
+    "tint": "#808080",
+    "opacity": 1.0
+  },
+  "theme": {
+    "backdrop": "#66000000",
+    "buttonFill": "#B0121216",
+    "buttonFillHover": "#D01E1E26",
+    "buttonBorder": "#FF3C3C46",
+    "buttonBorderHover": "#FF4FD1E0",
+    "buttonText": "#FFE6E6EE",
+    "buttonTextHover": "#FFFFFFFF",
+    "accent": "#FF4FD1E0",
+    "labelText": "#FFCFCFD8"
+  },
+  "elements": [
+    {
+      "type": "column",
+      "x": 0.955,
+      "y": 0.5,
+      "align": "right",
+      "valign": "middle",
+      "width": 300,
+      "gap": 6,
+      "childAlign": "right",
+      "children": [
+        {
+          "type": "image",
+          "file": "logo_wide_intro_white.png",
+          "width": 300,
+          "animation": {
+            "cols": 8,
+            "rows": 4,
+            "frameMs": 81,
+            "loop": false
+          }
+        },
+        {
+          "type": "label",
+          "text": "ccnr_menu.example.subtitle",
+          "scale": 1.0,
+          "color": "#FF9FB4C7"
+        },
+        {
+          "type": "button",
+          "text": "进入服务器",
+          "action": "connect:play.example.com",
+          "width": 200,
+          "height": 20
+        },
+        {
+          "type": "button",
+          "text": "单人游戏",
+          "action": "screen:singleplayer",
+          "width": 200,
+          "height": 20
+        },
+        {
+          "type": "button",
+          "text": "设置",
+          "action": "screen:options",
+          "width": 200,
+          "height": 20
+        },
+        {
+          "type": "button",
+          "text": "退出游戏",
+          "action": "quit",
+          "width": 200,
+          "height": 20
+        }
+      ]
+    }
+  ]
+}

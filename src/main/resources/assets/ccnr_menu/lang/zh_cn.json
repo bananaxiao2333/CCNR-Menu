@@ -1,0 +1,8 @@
+{
+  "ccnr_menu.screen.title": "CCNR 主菜单",
+  "ccnr_menu.command.reloaded": "菜单配置已重新加载：背景 %s，警告 %s 条（详情见 /ccnr_menu status）",
+  "ccnr_menu.command.status.header": "=== CCNR-Menu 状态 ===",
+  "ccnr_menu.command.status.no_warnings": "  配置没有警告。",
+  "ccnr_menu.command.status.warnings": "  配置警告 %s 条：",
+  "ccnr_menu.example.subtitle": "生存 · 剧情 · 战术配合"
+}
