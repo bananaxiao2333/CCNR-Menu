@@ -6,5 +6,13 @@
   "ccnr_menu.command.status.warnings": "  %s config warning(s):",
   "ccnr_menu.example.subtitle": "Survival · Story · Tactics",
   "ccnr_menu.command.reset_ok": "Menu config restored to the bundled default (previous file backed up as menu.json.bak)",
-  "ccnr_menu.command.reset_failed": "Failed to restore the default config (see the log)"
+  "ccnr_menu.command.reset_failed": "Failed to restore the default config (see the log)",
+  "ccnr_menu.log.action": "menu action %s",
+  "ccnr_menu.log.joining": "Connecting to %s",
+  "ccnr_menu.log.joined": "Joined %s",
+  "ccnr_menu.log.disconnected": "Connection closed",
+  "ccnr_menu.log.loading_world": "Loading world data",
+  "ccnr_menu.log.quit": "Quitting game",
+  "ccnr_menu.log.opening": "Opening %s",
+  "ccnr_menu.log.singleplayer": "singleplayer world"
 }

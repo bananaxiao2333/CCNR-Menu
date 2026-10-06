@@ -6,5 +6,13 @@
   "ccnr_menu.command.status.warnings": "  配置警告 %s 条：",
   "ccnr_menu.example.subtitle": "生存 · 剧情 · 战术配合",
   "ccnr_menu.command.reset_ok": "菜单配置已恢复为内置默认（原文件已备份为 menu.json.bak）",
-  "ccnr_menu.command.reset_failed": "恢复默认失败（写文件出错，详见日志）"
+  "ccnr_menu.command.reset_failed": "恢复默认失败（写文件出错，详见日志）",
+  "ccnr_menu.log.action": "菜单动作 %s",
+  "ccnr_menu.log.joining": "正在连接 %s",
+  "ccnr_menu.log.joined": "已加入 %s",
+  "ccnr_menu.log.disconnected": "连接已关闭",
+  "ccnr_menu.log.loading_world": "正在加载世界数据",
+  "ccnr_menu.log.quit": "正在退出游戏",
+  "ccnr_menu.log.opening": "打开 %s",
+  "ccnr_menu.log.singleplayer": "单机世界"
 }

@@ -535,6 +535,465 @@ public final class MenuDefaults {
                   ]
                 }
                 """);
+        // 0.5.1：色带左右留白 + 标志改回正中的 30% 水印（0.6.0 加了 bootLog 那一层）
+        map.put(
+                "0.5.1",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": false,
+                  "applyToAllScreens": true,
+                  "background": {
+                    "type": "slideshow",
+                    "fit": "cover",
+                    "tint": "#A6A6A6",
+                    "opacity": 1.0,
+                    "holdMs": 9000,
+                    "fadeMs": 1400,
+                    "zoom": 0.08,
+                    "panX": 0.05,
+                    "panY": 0.0,
+                    "loop": true,
+                    "slides": [
+                      "slides/01.jpg",
+                      "slides/02.jpg",
+                      "slides/03.jpg",
+                      "slides/04.jpg",
+                      "slides/05.jpg",
+                      "slides/06.jpg",
+                      "slides/07.jpg",
+                      "slides/08.jpg",
+                      "slides/09.jpg",
+                      "slides/10.jpg",
+                      "slides/11.jpg"
+                    ]
+                  },
+                  "mark": {
+                    "file": "logo_wide_mono.png",
+                    "width": 420,
+                    "opacity": 0.3,
+                    "x": 0.5,
+                    "y": 0.5,
+                    "onMainMenu": false
+                  },
+                  "theme": {
+                    "buttonStyle": "text",
+                    "backdrop": "#4D000000",
+                    "buttonFill": "#B0121216",
+                    "buttonFillHover": "#D01E1E26",
+                    "buttonBorder": "#FF3C3C46",
+                    "buttonBorderHover": "#FF4FD1E0",
+                    "buttonText": "#FFFFFFFF",
+                    "buttonTextHover": "#FF4FD1E0",
+                    "accent": "#FF4FD1E0",
+                    "labelText": "#FFE6E6EE"
+                  },
+                  "elements": [
+                    {
+                      "type": "column",
+                      "x": 0.1,
+                      "y": 0.5,
+                      "align": "left",
+                      "valign": "middle",
+                      "width": 300,
+                      "gap": 10,
+                      "childAlign": "left",
+                      "bar": {
+                        "color": "#33000000",
+                        "width": "buttons",
+                        "padding": 10
+                      },
+                      "children": [
+                        {
+                          "type": "image",
+                          "file": "logo_wide_intro_mono.png",
+                          "width": 300,
+                          "animation": {
+                            "cols": 8,
+                            "rows": 10,
+                            "frameMs": 33,
+                            "loop": false
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "text": "进入服务器",
+                          "action": "screen:multiplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "单人游戏",
+                          "action": "screen:singleplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "设置",
+                          "action": "screen:options"
+                        },
+                        {
+                          "type": "button",
+                          "text": "退出游戏",
+                          "action": "quit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+        // 0.7.0：启动日志进事件 + 通用层 + 主菜单靠右/其它界面靠左（0.7.1 回退单一锚点）
+        map.put(
+                "0.7.0",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": false,
+                  "applyToAllScreens": true,
+                  "background": {
+                    "type": "slideshow",
+                    "fit": "cover",
+                    "tint": "#A6A6A6",
+                    "opacity": 1.0,
+                    "holdMs": 9000,
+                    "fadeMs": 1400,
+                    "zoom": 0.08,
+                    "panX": 0.05,
+                    "panY": 0.0,
+                    "loop": true,
+                    "slides": [
+                      "slides/01.jpg",
+                      "slides/02.jpg",
+                      "slides/03.jpg",
+                      "slides/04.jpg",
+                      "slides/05.jpg",
+                      "slides/06.jpg",
+                      "slides/07.jpg",
+                      "slides/08.jpg",
+                      "slides/09.jpg",
+                      "slides/10.jpg",
+                      "slides/11.jpg"
+                    ]
+                  },
+                  "mark": {
+                    "file": "logo_wide_mono.png",
+                    "width": 420,
+                    "opacity": 0.3,
+                    "x": 0.5,
+                    "y": 0.5,
+                    "onMainMenu": false
+                  },
+                  "bootLog": {
+                    "enabled": false,
+                    "builtin": "ubuntu",
+                    "spacingMs": 95,
+                    "scale": 1.0,
+                    "x": 0.02,
+                    "y": 0.04,
+                    "align": "left",
+                    "valign": "top",
+                    "meter": "systemd",
+                    "spinnerWidth": 12,
+                    "onAllScreens": true
+                  },
+                  "theme": {
+                    "buttonStyle": "text",
+                    "backdrop": "#4D000000",
+                    "buttonFill": "#B0121216",
+                    "buttonFillHover": "#D01E1E26",
+                    "buttonBorder": "#FF3C3C46",
+                    "buttonBorderHover": "#FF4FD1E0",
+                    "buttonText": "#FFFFFFFF",
+                    "buttonTextHover": "#FF4FD1E0",
+                    "accent": "#FF4FD1E0",
+                    "labelText": "#FFE6E6EE"
+                  },
+                  "elements": [
+                    {
+                      "type": "column",
+                      "x": 0.1,
+                      "y": 0.5,
+                      "align": "left",
+                      "valign": "middle",
+                      "width": 300,
+                      "gap": 10,
+                      "childAlign": "left",
+                      "bar": {
+                        "color": "#33000000",
+                        "width": "buttons",
+                        "padding": 10
+                      },
+                      "children": [
+                        {
+                          "type": "image",
+                          "file": "logo_wide_intro_mono.png",
+                          "width": 300,
+                          "animation": {
+                            "cols": 8,
+                            "rows": 10,
+                            "frameMs": 33,
+                            "loop": false
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "text": "进入服务器",
+                          "action": "screen:multiplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "单人游戏",
+                          "action": "screen:singleplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "设置",
+                          "action": "screen:options"
+                        },
+                        {
+                          "type": "button",
+                          "text": "退出游戏",
+                          "action": "quit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+        // 0.6.0：启动日志首次加入（靠左、仅主菜单）
+        map.put(
+                "0.6.0",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": false,
+                  "applyToAllScreens": true,
+                  "background": {
+                    "type": "slideshow",
+                    "fit": "cover",
+                    "tint": "#A6A6A6",
+                    "opacity": 1.0,
+                    "holdMs": 9000,
+                    "fadeMs": 1400,
+                    "zoom": 0.08,
+                    "panX": 0.05,
+                    "panY": 0.0,
+                    "loop": true,
+                    "slides": [
+                      "slides/01.jpg",
+                      "slides/02.jpg",
+                      "slides/03.jpg",
+                      "slides/04.jpg",
+                      "slides/05.jpg",
+                      "slides/06.jpg",
+                      "slides/07.jpg",
+                      "slides/08.jpg",
+                      "slides/09.jpg",
+                      "slides/10.jpg",
+                      "slides/11.jpg"
+                    ]
+                  },
+                  "mark": {
+                    "file": "logo_wide_mono.png",
+                    "width": 420,
+                    "opacity": 0.3,
+                    "x": 0.5,
+                    "y": 0.5,
+                    "onMainMenu": false
+                  },
+                  "bootLog": {
+                    "enabled": false,
+                    "builtin": "ubuntu",
+                    "spacingMs": 95,
+                    "scale": 1.0,
+                    "x": 0.02,
+                    "y": 0.04,
+                    "align": "left",
+                    "valign": "top",
+                    "meter": "systemd",
+                    "onAllScreens": false
+                  },
+                  "theme": {
+                    "buttonStyle": "text",
+                    "backdrop": "#4D000000",
+                    "buttonFill": "#B0121216",
+                    "buttonFillHover": "#D01E1E26",
+                    "buttonBorder": "#FF3C3C46",
+                    "buttonBorderHover": "#FF4FD1E0",
+                    "buttonText": "#FFFFFFFF",
+                    "buttonTextHover": "#FF4FD1E0",
+                    "accent": "#FF4FD1E0",
+                    "labelText": "#FFE6E6EE"
+                  },
+                  "elements": [
+                    {
+                      "type": "column",
+                      "x": 0.1,
+                      "y": 0.5,
+                      "align": "left",
+                      "valign": "middle",
+                      "width": 300,
+                      "gap": 10,
+                      "childAlign": "left",
+                      "bar": {
+                        "color": "#33000000",
+                        "width": "buttons",
+                        "padding": 10
+                      },
+                      "children": [
+                        {
+                          "type": "image",
+                          "file": "logo_wide_intro_mono.png",
+                          "width": 300,
+                          "animation": {
+                            "cols": 8,
+                            "rows": 10,
+                            "frameMs": 33,
+                            "loop": false
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "text": "进入服务器",
+                          "action": "screen:multiplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "单人游戏",
+                          "action": "screen:singleplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "设置",
+                          "action": "screen:options"
+                        },
+                        {
+                          "type": "button",
+                          "text": "退出游戏",
+                          "action": "quit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
+        // 0.7.1：按钮底衬（0.8.0 加了 background.extraLoadingScreens）
+        map.put(
+                "0.7.1",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": false,
+                  "applyToAllScreens": true,
+                  "background": {
+                    "type": "slideshow",
+                    "fit": "cover",
+                    "tint": "#A6A6A6",
+                    "opacity": 1.0,
+                    "holdMs": 9000,
+                    "fadeMs": 1400,
+                    "zoom": 0.08,
+                    "panX": 0.05,
+                    "panY": 0.0,
+                    "loop": true,
+                    "slides": [
+                      "slides/01.jpg",
+                      "slides/02.jpg",
+                      "slides/03.jpg",
+                      "slides/04.jpg",
+                      "slides/05.jpg",
+                      "slides/06.jpg",
+                      "slides/07.jpg",
+                      "slides/08.jpg",
+                      "slides/09.jpg",
+                      "slides/10.jpg",
+                      "slides/11.jpg"
+                    ]
+                  },
+                  "mark": {
+                    "file": "logo_wide_mono.png",
+                    "width": 420,
+                    "opacity": 0.3,
+                    "x": 0.5,
+                    "y": 0.5,
+                    "onMainMenu": false
+                  },
+                  "bootLog": {
+                    "enabled": false,
+                    "builtin": "ubuntu",
+                    "spacingMs": 95,
+                    "scale": 1.0,
+                    "x": 0.02,
+                    "y": 0.04,
+                    "align": "left",
+                    "valign": "top",
+                    "meter": "systemd",
+                    "spinnerWidth": 12,
+                    "onAllScreens": true
+                  },
+                  "theme": {
+                    "buttonStyle": "text",
+                    "backdrop": "#4D000000",
+                    "buttonBackdrop": "#1A000000",
+                    "buttonFill": "#B0121216",
+                    "buttonFillHover": "#D01E1E26",
+                    "buttonBorder": "#FF3C3C46",
+                    "buttonBorderHover": "#FF4FD1E0",
+                    "buttonText": "#FFFFFFFF",
+                    "buttonTextHover": "#FF4FD1E0",
+                    "accent": "#FF4FD1E0",
+                    "labelText": "#FFE6E6EE"
+                  },
+                  "elements": [
+                    {
+                      "type": "column",
+                      "x": 0.1,
+                      "y": 0.5,
+                      "align": "left",
+                      "valign": "middle",
+                      "width": 300,
+                      "gap": 10,
+                      "childAlign": "left",
+                      "bar": {
+                        "color": "#33000000",
+                        "width": "buttons",
+                        "padding": 10
+                      },
+                      "children": [
+                        {
+                          "type": "image",
+                          "file": "logo_wide_intro_mono.png",
+                          "width": 300,
+                          "animation": {
+                            "cols": 8,
+                            "rows": 10,
+                            "frameMs": 33,
+                            "loop": false
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "text": "进入服务器",
+                          "action": "screen:multiplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "单人游戏",
+                          "action": "screen:singleplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "设置",
+                          "action": "screen:options"
+                        },
+                        {
+                          "type": "button",
+                          "text": "退出游戏",
+                          "action": "quit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
         return java.util.Collections.unmodifiableMap(map);
     }
     /** 是否与某个历史默认配置**结构完全一致**（即玩家从未改过它）。 */

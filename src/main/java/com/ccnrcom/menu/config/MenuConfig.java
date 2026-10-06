@@ -5,6 +5,7 @@
 package com.ccnrcom.menu.config;
 
 import com.ccnrcom.menu.ui.Align;
+import com.ccnrcom.menu.ui.BootMeter;
 import com.ccnrcom.menu.ui.ColorSpec;
 import com.ccnrcom.menu.ui.MenuGeometry;
 import com.ccnrcom.menu.ui.SpriteSheet;
@@ -34,6 +35,7 @@ import java.util.List;
  *     「换掉泥土界面和全景图界面」本来就是同一件事——一个服务器只想看到自己的一张背景。
  *     世界内的界面（暂停、背包等，背景是世界本身）**始终不动**。
  * @param mark 居中标志（默认只画在泥土页面等**非主菜单**的接管界面上；主菜单自己有元素布局）
+ * @param bootLog 启动日志那一层（背景图之上、图标与按钮之下；默认关）
  */
 public record MenuConfig(
         boolean enabled,
@@ -42,7 +44,8 @@ public record MenuConfig(
         MenuThemeSpec theme,
         List<MenuElement> elements,
         boolean applyToAllScreens,
-        MarkSpec mark) {
+        MarkSpec mark,
+        BootLogSpec bootLog) {
 
     /** 本模组的 modid，同时也是文案键前缀。 */
     public static final String MOD_ID = "ccnr_menu";
@@ -55,6 +58,7 @@ public record MenuConfig(
         theme = theme == null ? MenuThemeSpec.DEFAULT : theme;
         elements = elements == null ? List.of() : List.copyOf(elements);
         mark = mark == null ? MarkSpec.NONE : mark;
+        bootLog = bootLog == null ? BootLogSpec.NONE : bootLog;
     }
 
     /**
@@ -65,7 +69,14 @@ public record MenuConfig(
      */
     public static MenuConfig template() {
         return new MenuConfig(
-                true, true, BackgroundSpec.DEFAULT, MenuThemeSpec.DEFAULT, List.of(), true, MarkSpec.NONE);
+                true,
+                true,
+                BackgroundSpec.DEFAULT,
+                MenuThemeSpec.DEFAULT,
+                List.of(),
+                true,
+                MarkSpec.NONE,
+                BootLogSpec.NONE);
     }
 
     /**
@@ -78,7 +89,14 @@ public record MenuConfig(
      */
     public static MenuConfig fallback() {
         return new MenuConfig(
-                true, true, BackgroundSpec.DEFAULT, MenuThemeSpec.DEFAULT, List.of(), true, MarkSpec.NONE);
+                true,
+                true,
+                BackgroundSpec.DEFAULT,
+                MenuThemeSpec.DEFAULT,
+                List.of(),
+                true,
+                MarkSpec.NONE,
+                BootLogSpec.NONE);
     }
 
     /** 是否存在配置出来的按钮（用于诊断输出与防呆）。 */
@@ -107,18 +125,125 @@ public record MenuConfig(
         BackgroundSpec background = BackgroundSpec.parse(root, warnings);
         MenuThemeSpec theme = MenuThemeSpec.parse(root, warnings);
         MarkSpec mark = MarkSpec.parse(root, warnings);
+        BootLogSpec bootLog = parseBootLog(root, warnings);
 
         List<MenuElement> elements = parseElements(root, "elements", 0, warnings);
 
         MenuConfig config =
-                new MenuConfig(enabled, vanillaButtons, background, theme, elements, applyToAllScreens, mark);
+                new MenuConfig(enabled, vanillaButtons, background, theme, elements, applyToAllScreens, mark, bootLog);
 
         // 防呆：一个按钮都没有的菜单会把玩家锁在主界面（进不去设置、退不出游戏）。
         if (config.buttonCount() == 0 && !vanillaButtons) {
             warnings.add("配置里没有任何 button 元素 → 已自动改用原版按钮（否则主菜单会没有按钮，玩家退不出游戏）");
-            config = new MenuConfig(true, true, background, theme, elements, applyToAllScreens, mark);
+            config = new MenuConfig(true, true, background, theme, elements, applyToAllScreens, mark, bootLog);
         }
         return config;
+    }
+
+    /**
+     * 解析 {@code bootLog} 那一块（背景图之上、图标之下的那一层）。
+     *
+     * <p>三个刻意的取舍：
+     * <ul>
+     *   <li>既没有 {@code builtin} 也没有 {@code file} 时，光开 {@code enabled} 不显示任何东西——
+     *       于是解析这里就直接警告一句。「开了没反应」是最难查的一类故障。</li>
+     *   <li>{@code spinner} 是**文案数组**而不是开关：真实终端那一行本来就会换文案
+     *       （{@code A start job is running (3s / no limit)} → {@code [  OK  ] ...}），
+     *       写死一句就少一半味道。缺省时用内置那一对。</li>
+     *   <li>{@code color} 缺省是 {@link BootLogSpec#NO_COLOR}（按行类型上色）。想整片白就写
+     *       {@code "color": "#FFFFFF"}——写死白色会让「状态用颜色区分」这件事直接消失。</li>
+     * </ul>
+     */
+    private static BootLogSpec parseBootLog(JsonObject root, List<String> warnings) {
+        JsonObject o =
+                root.has("bootLog") && root.get("bootLog").isJsonObject() ? root.getAsJsonObject("bootLog") : null;
+        if (o == null) return BootLogSpec.NONE;
+
+        boolean enabled = JsonUtil.bool(o, "enabled", false);
+        String builtin = JsonUtil.str(o, "builtin", "").trim();
+        String file = JsonUtil.str(o, "file", "").trim();
+        BootLogSpec defaults = BootLogSpec.builtinDefault();
+
+        List<String> spinner = new ArrayList<>();
+        JsonElement rawSpinner = o.get("spinner");
+        if (rawSpinner == null) {
+            spinner.addAll(defaults.spinner());
+        } else if (rawSpinner.isJsonArray()) {
+            for (JsonElement item : rawSpinner.getAsJsonArray()) {
+                if (!item.isJsonPrimitive()) {
+                    warnings.add("bootLog.spinner 里有非字符串项 → 已跳过");
+                    continue;
+                }
+                String text = item.getAsString().strip();
+                if (!text.isEmpty()) spinner.add(text);
+            }
+        } else {
+            warnings.add("bootLog.spinner 必须是字符串数组 → 已用内置的那一对");
+            spinner.addAll(defaults.spinner());
+        }
+
+        long spacing = JsonUtil.num(o, "spacingMs", defaults.spacingMs());
+        if (spacing < 0) {
+            warnings.add("bootLog.spacingMs 为负 → 已按 0 处理");
+            spacing = 0;
+        }
+        double scale = JsonUtil.dbl(o, "scale", defaults.scale());
+        if (scale < 0.1 || scale > 8) {
+            warnings.add("bootLog.scale 超出 0.1~8 → 已收敛到边界值");
+            scale = Math.min(8, Math.max(0.1, scale));
+        }
+
+        int color = BootLogSpec.NO_COLOR;
+        if (o.has("color")) {
+            String raw = JsonUtil.str(o, "color", "");
+            color = ColorSpec.parseOr(raw, BootLogSpec.NO_COLOR);
+            if (color == BootLogSpec.NO_COLOR) warnings.add("bootLog.color 解析失败 → 已改为按行类型上色: " + raw);
+        }
+
+        String rawMeter = JsonUtil.str(o, "meter", "systemd").trim();
+        BootMeter meter = BootMeter.parse(rawMeter);
+        if (!"systemd".equalsIgnoreCase(rawMeter)
+                && !"bracket".equalsIgnoreCase(rawMeter)
+                && !"plymouth".equalsIgnoreCase(rawMeter)) {
+            warnings.add("bootLog.meter 认不出（可用 systemd/bracket/plymouth）→ 已用 systemd: " + rawMeter);
+        }
+
+        if (enabled && builtin.isEmpty() && file.isEmpty()) {
+            warnings.add("bootLog.enabled=true 但既没有 builtin 也没有 file → 这一层不会显示任何内容");
+        }
+
+        // 锚点语义：所有界面共用（曾经按屏切换，实测在窄窗口下会把整块推出屏幕，已回退）
+        Align align =
+                Align.parse(JsonUtil.str(o, "align", defaults.align().name().toLowerCase(java.util.Locale.ROOT)));
+        if (align == null) {
+            warnings.add("bootLog.align 认不出（可用 left/center/right）→ 已用 left");
+            align = Align.LEFT;
+        }
+        if (o.has("allScreensAlign") || o.has("switchMs")) {
+            warnings.add("bootLog.allScreensAlign / switchMs 已废弃（所有界面共用同一个锚点）→ 已忽略");
+        }
+
+        long spinnerWidth = JsonUtil.num(o, "spinnerWidth", defaults.spinnerWidth());
+        if (spinnerWidth < 1 || spinnerWidth > 40) {
+            warnings.add("bootLog.spinnerWidth 超出 1~40 → 已收敛");
+            spinnerWidth = Math.min(40, Math.max(1, spinnerWidth));
+        }
+
+        return new BootLogSpec(
+                enabled,
+                builtin,
+                file,
+                spinner,
+                spacing,
+                (float) scale,
+                JsonUtil.dbl(o, "x", defaults.x()),
+                JsonUtil.dbl(o, "y", defaults.y()),
+                align,
+                VAlign.parse(JsonUtil.str(o, "valign", "top")),
+                color,
+                meter,
+                (int) spinnerWidth,
+                JsonUtil.bool(o, "onAllScreens", defaults.onAllScreens()));
     }
 
     /** 解析一个元素数组（顶层与容器子元素共用这一份）。 */

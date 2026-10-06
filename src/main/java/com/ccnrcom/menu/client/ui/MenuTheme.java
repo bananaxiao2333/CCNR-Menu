@@ -20,6 +20,9 @@ import net.minecraft.network.chat.Component;
  */
 public final class MenuTheme {
 
+    /** 悬停时底衬的加倍系数：10% → 15%，让"鼠标在这一行上"多一个通道（不是只靠文字变色）。 */
+    private static final float HOVER_BACKDROP_FACTOR = 1.5f;
+
     private final MenuThemeSpec spec;
 
     public MenuTheme(MenuThemeSpec spec) {
@@ -65,6 +68,12 @@ public final class MenuTheme {
             int colorOverride) {
         int textColor = buttonTextColor(hovered, colorOverride);
         int textY = y1 + (y2 - y1 - font.lineHeight) / 2 + 1;
+
+        // 底衬：画在文字之下、覆盖整个按钮矩形。两种外观都要——
+        // text 外观本来一点底色都没有，背景一花文字就淹没；solid 外观的底色是半透明的，
+        // 底衬顺带把**列色带**挡住，字不会被色带的边界切着走。
+        int back = ColorSpec.scaleAlpha(spec.buttonBackdrop(), hovered ? HOVER_BACKDROP_FACTOR : 1f);
+        if (ColorSpec.alpha(back) > 0) gfx.fill(x1, y1, x2, y2, back);
 
         if (spec.buttonStyle() == ButtonStyle.TEXT) {
             gfx.drawString(font, label, x1, textY, textColor, true);

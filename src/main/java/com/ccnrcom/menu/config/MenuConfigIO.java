@@ -74,6 +74,18 @@ public final class MenuConfigIO {
             "slides/10.jpg",
             "slides/11.jpg");
 
+    /**
+     * 内置启动日志驱动（{@code bootlog/<名>.txt}）：**不属于** {@link #PRESET_FILES}。
+     *
+     * <p>区别在于「谁拥有它」：presets 里的素材由模组管理（内容换了就覆盖），
+     * 而启动日志驱动是给作者**抄一份改**的模板——模组读的是 jar 里那一份（{@code bootLog.builtin}），
+     * 作者想改就把配置目录里这份复制成自己的名字、再让 {@code bootLog.file} 指向它。
+     * 所以它只释放一次，之后永不覆盖。
+     */
+    private static final List<String> BOOTLOG_DRIVERS = List.of("ubuntu.txt");
+
+    private static final String BOOTLOG_RESOURCE_DIR = "/assets/ccnr_menu/bootlog/";
+
     private static final Logger LOGGER = LogManager.getLogger("ccnr_menu");
 
     private MenuConfigIO() {}
@@ -110,6 +122,9 @@ public final class MenuConfigIO {
         }
         for (String preset : PRESET_FILES) {
             created |= copyPreset(preset);
+        }
+        for (String driver : BOOTLOG_DRIVERS) {
+            created |= copyBootLogDriver(driver);
         }
         return created;
     }
@@ -215,6 +230,30 @@ public final class MenuConfigIO {
             return true;
         } catch (IOException e) {
             LOGGER.warn("[CCNR-Menu] 释放内置素材失败: {} —— {}", name, e.toString());
+            return false;
+        }
+    }
+
+    /**
+     * 释放一份启动日志驱动到 {@code config/ccnr_menu/bootlog/}：**只在文件不存在时**写。
+     *
+     * <p>刻意不做「内容变了就覆盖」：这份文件的用途就是给作者改（照着它写自己的启动日志）。
+     * 覆盖它等于把作者写的东西删掉——那正是 {@code copyPreset} 要避免的另一半问题。
+     */
+    private static boolean copyBootLogDriver(String name) {
+        Path target = configDir().resolve("bootlog").resolve(name);
+        if (Files.isRegularFile(target)) return false;
+        try (InputStream in = MenuConfigIO.class.getResourceAsStream(BOOTLOG_RESOURCE_DIR + name)) {
+            if (in == null) {
+                LOGGER.warn("[CCNR-Menu] 内置启动日志缺失，无法释放 {}（资源: {}）", name, BOOTLOG_RESOURCE_DIR + name);
+                return false;
+            }
+            Files.createDirectories(target.getParent());
+            Files.write(target, in.readAllBytes());
+            LOGGER.info("[CCNR-Menu] 已释放启动日志模板 {}", target);
+            return true;
+        } catch (IOException e) {
+            LOGGER.warn("[CCNR-Menu] 释放启动日志模板失败: {} —— {}", name, e.toString());
             return false;
         }
     }

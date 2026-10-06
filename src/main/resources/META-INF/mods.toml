@@ -31,3 +31,11 @@ description='''CCNR 主菜单自定义模组（Forge 1.20.1，纯客户端）
     versionRange="[1.20.1,1.21)"
     ordering="NONE"
     side="CLIENT"
+
+# 混入配置由 build.gradle 写进 MANIFEST.MF 的 `MixinConfigs`，**不要**加回这个文件：
+# 放在这里（`[[dependencies.*]]` 之后的裸键）在 TOML 里属于上面那张表，Forge 读不到顶层键，
+# 于是混入被**静默**忽略——一条都不生效，日志里既没有生效提示也没有报错。
+# 详见 AGENTS.md 与 docs/02 §1.4。
+# 拦的是「泥土背景到底画不画」这个最底层的收口处（Screen.renderDirtBackground）：
+# 1.20.1 的 ScreenEvent.Render.Pre/Post 声明了但根本没被触发，而加载类界面
+# （ProgressScreen / LevelLoadingScreen / ReceivingLevelScreen）自己画泥土、也不调 super.render()。
