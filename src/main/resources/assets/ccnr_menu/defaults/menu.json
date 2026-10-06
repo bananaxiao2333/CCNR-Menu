@@ -3,60 +3,96 @@
   "vanillaButtons": false,
   "applyToAllScreens": true,
   "background": {
-    "type": "image",
-    "file": "background.png",
-    "fit": "cover",
-    "opacity": 1.0
+    "type": "text",
+    "color": "#000000",
+    "text": {
+      "x": 0.70,
+      "y": 0.5,
+      "align": "center",
+      "valign": "middle",
+      "scale": 2,
+      "lineGap": 12,
+      "charMs": 45,
+      "stepMs": 90,
+      "holdMs": 2600,
+      "loop": false,
+      "shadow": false,
+      "palette": ["#4FD1E0", "#7CF7C4", "#FFD166", "#FF8AB8", "#9B8CFF", "#E6EDF3"],
+      "segments": [
+        {
+          "left": "[===[ ",
+          "text": "CCNR 服务器",
+          "right": " ]===]",
+          "offset": 0
+        },
+        {
+          "left": "+--- ",
+          "text": "生存 · 创造 · 长期运营",
+          "right": " ---+",
+          "offset": 2
+        },
+        {
+          "left": "[===[ ",
+          "text": "play.ccnr.example",
+          "right": " ]===]",
+          "offset": 4
+        }
+      ]
+    }
+  },
+  "theme": {
+    "buttonStyle": "text",
+    "backdrop": "#00000000",
+    "buttonFill": "#B0121216",
+    "buttonFillHover": "#D01E1E26",
+    "buttonBorder": "#FF3C3C46",
+    "buttonBorderHover": "#FF4FD1E0",
+    "buttonText": "#FFE6E6EE",
+    "buttonTextHover": "#FF4FD1E0",
+    "accent": "#FF4FD1E0",
+    "labelText": "#FFCFCFD8"
   },
   "elements": [
     {
       "type": "column",
-      "x": 0.955,
+      "x": 0.04,
       "y": 0.5,
-      "align": "right",
+      "align": "left",
       "valign": "middle",
       "width": 300,
-      "gap": 8,
-      "childAlign": "right",
+      "gap": 10,
+      "childAlign": "left",
       "children": [
         {
           "type": "image",
-          "file": "logo_wide_intro_black.png",
+          "file": "logo_wide_intro_mono.png",
           "width": 300,
           "animation": {
             "cols": 8,
-            "rows": 4,
-            "frameMs": 81,
+            "rows": 10,
+            "frameMs": 33,
             "loop": false
           }
         },
         {
           "type": "button",
           "text": "进入服务器",
-          "action": "screen:multiplayer",
-          "width": 200,
-          "height": 20
+          "action": "screen:multiplayer"
         },
         {
           "type": "button",
           "text": "单人游戏",
-          "action": "screen:singleplayer",
-          "width": 200,
-          "height": 20
+          "action": "screen:singleplayer"
         },
         {
           "type": "button",
           "text": "设置",
-          "action": "screen:options",
-          "width": 200,
-          "height": 20
+          "action": "screen:options"
         },
         {
           "type": "button",
           "text": "退出游戏",
-          "action": "quit",
-          "width": 200,
-          "height": 20
+          "action": "quit"
         }
       ]
     }

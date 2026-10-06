@@ -67,7 +67,7 @@ public final class ScreenBackgrounds {
 
     /** 按配置指纹确保实例存在（指纹变了就换掉旧的）。 */
     private static void ensure(MenuConfig config) {
-        String wanted = signatureOf(config.background());
+        String wanted = signatureOf(config);
         if (wanted.equals(signature)) return;
 
         close();
@@ -78,12 +78,18 @@ public final class ScreenBackgrounds {
     }
 
     /**
-     * 背景指纹：所有影响画面的参数 + 素材文件的修改时间。
+     * 背景指纹：所有影响画面的参数 + 素材文件的修改时间 + **配色**。
      *
      * <p>带上修改时间是为了「作者换了图但参数没变」这种情况——只看参数的话，
      * 玩家会以为模组坏了（改了文件却毫无反应）。
+     *
+     * <p>带上配色是因为压暗层（{@code theme.backdrop}）也由这个实例持有：
+     * 只改配色不改背景时，指纹不变就不会重建，改了 {@code theme} 却看不到变化。
+     * {@link MenuConfig#theme()} 与 {@link BackgroundSpec#text()} 都是纯数据
+     * （int + 枚举 + 字符串），{@code signature()} 里刻意不放过任何数组字段。
      */
-    private static String signatureOf(BackgroundSpec spec) {
+    private static String signatureOf(MenuConfig config) {
+        BackgroundSpec spec = config.background();
         StringBuilder sb = new StringBuilder();
         sb.append(spec.kind())
                 .append('|')
@@ -103,6 +109,10 @@ public final class ScreenBackgrounds {
                 .append('*')
                 .append(spec.sheet().speed())
                 .append(spec.sheet().loop() ? 'L' : 'O')
+                .append('|')
+                .append(spec.text().signature())
+                .append('|')
+                .append(config.theme())
                 .append('|');
         if (spec.needsFile()) {
             try {

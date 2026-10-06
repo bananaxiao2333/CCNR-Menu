@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.ccnrcom.menu.ui.Align;
+import com.ccnrcom.menu.ui.ButtonStyle;
+import com.ccnrcom.menu.ui.ColorSpec;
 import com.ccnrcom.menu.util.JsonUtil;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
@@ -42,7 +44,7 @@ class MenuConfigTest {
     }
 
     @Test
-    @DisplayName("随模组发布的默认配置：右侧竖列（图标在上、按钮在下、右边缘对齐），且没有任何警告")
+    @DisplayName("随模组发布的默认配置：左侧竖列（图标在上、按钮在下、左边缘对齐）+ 黑底彩色文字背景 + 纯文字按钮")
     void defaultResourceIsClean() {
         List<String> warnings = new ArrayList<>();
         MenuConfig config = MenuConfig.parse(resource("/assets/ccnr_menu/defaults/menu.json"), warnings);
@@ -51,22 +53,38 @@ class MenuConfigTest {
         assertTrue(config.enabled(), "默认应当启用（否则换上毫无效果）");
         assertFalse(config.vanillaButtons(), "默认用的是配置出来的按钮");
         assertTrue(config.applyToAllScreens(), "默认把泥土界面也一起换掉（这就是「都替换掉」）");
-        assertEquals(BackgroundSpec.Kind.IMAGE, config.background().kind(), "默认背景是随模组发布的 background.png");
-        assertEquals("background.png", config.background().file());
 
-        // 布局：一个右对齐的竖列，列内右对齐，第一个子元素是横版大图标
+        // 背景：黑底 + 彩色文字动画（不加载任何素材）
+        assertEquals(BackgroundSpec.Kind.TEXT, config.background().kind(), "默认背景是文字背景");
+        assertFalse(config.background().needsFile(), "文字背景不应该需要素材文件");
+        assertEquals(0xFF000000, config.background().color(), "底色是纯黑");
+        assertEquals(3, config.background().text().segments().size(), "默认三段（装饰符号 [ ] = - +）");
+        assertTrue(config.background().text().totalChars() > 0, "分段里得有字");
+        assertTrue(config.background().text().palette().length >= 2, "彩色文字至少要有两个颜色才谈得上流动");
+        assertFalse(config.background().text().loop(), "默认只写一遍，之后颜色继续流动（循环重写会一直抢注意力）");
+
+        // 外观：无背景纯文字
+        assertEquals(ButtonStyle.TEXT, config.theme().buttonStyle(), "默认按钮是纯文字外观");
+        assertEquals(0, ColorSpec.alpha(config.theme().backdrop()), "背景本来就是黑的，不该再压一层遮罩");
+
+        // 布局：一个左对齐的竖列，列内左对齐，第一个子元素是横版大图标
         assertEquals(1, config.elements().size(), "默认布局就是一个竖列容器");
         MenuElement column = config.elements().get(0);
         assertEquals(MenuElement.Type.COLUMN, column.type());
-        assertEquals(Align.RIGHT, column.align(), "整块靠右");
-        assertEquals(Align.RIGHT, column.column().childAlign(), "列内右对齐（图标与按钮右边缘对齐）");
+        assertEquals(Align.LEFT, column.align(), "整块靠左");
+        assertEquals(Align.LEFT, column.column().childAlign(), "列内左对齐（图标与按钮左边缘对齐）");
         assertEquals(300, column.width(), "列宽固定，这样按钮不会因图标宽度变化而左右跳");
-        assertEquals(MenuElement.Type.IMAGE, column.column().children().get(0).type(), "图标在按钮之上");
-        assertTrue(column.column().children().get(0).animatedImage(), "默认图标播放入场动画");
+        MenuElement icon = column.column().children().get(0);
+        assertEquals(MenuElement.Type.IMAGE, icon.type(), "图标在按钮之上");
+        assertTrue(icon.animatedImage(), "默认图标播放入场动画");
+        assertEquals("logo_wide_intro_mono.png", icon.file(), "默认用全白单色图标（配黑底彩色文字背景）");
+        assertEquals(8, icon.sheet().cols());
+        assertEquals(10, icon.sheet().rows(), "80 帧 = 8x10");
+        assertEquals(33, icon.sheet().frameMs(), "每帧 33ms ≈ 30fps");
         assertEquals(4, config.buttonCount(), "按钮个数（递归统计容器里的）");
         for (MenuElement child : column.column().children()) {
             if (child.type() == MenuElement.Type.BUTTON) {
-                assertEquals(200, child.buttonWidth(), "默认按钮宽度一致");
+                assertEquals(MenuElement.AUTO, child.width(), "纯文字按钮不写宽度：宽度由外观决定（贴着文字，否则看不见的热区比文字宽一大截）");
             }
         }
     }

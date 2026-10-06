@@ -58,10 +58,10 @@ public final class MenuConfigIO {
      */
     public static final List<String> PRESET_FILES = List.of(
             "background.png",
-            "logo_wide_black.png",
-            "logo_wide_intro_black.png",
             "logo_wide_white.png",
-            "logo_wide_intro_white.png");
+            "logo_wide_intro_white.png",
+            "logo_wide_mono.png",
+            "logo_wide_intro_mono.png");
 
     private static final Logger LOGGER = LogManager.getLogger("ccnr_menu");
 
