@@ -255,8 +255,8 @@ public final class MenuScreen extends Screen {
         MenuElement.Bar bar = column.column().bar();
         if (bar != null) {
             boolean buttons = !bar.fullColumnWidth() && buttonLeft <= buttonRight;
-            int x = buttons ? buttonLeft : rect.x();
-            int w = buttons ? buttonRight - buttonLeft : stack.width();
+            int x = buttons ? buttonLeft - bar.padding() : rect.x();
+            int w = buttons ? (buttonRight - buttonLeft) + bar.padding() * 2 : stack.width();
             // 满屏高：色带是「这一列在这儿」的视觉锚点，跟着列高走会随元素增减忽长忽短
             bars.add(new PlacedBar(new MenuGeometry.Rect(x, 0, Math.max(1, w), this.height), bar.color()));
         }

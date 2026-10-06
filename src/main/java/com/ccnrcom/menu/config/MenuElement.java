@@ -110,8 +110,10 @@ public record MenuElement(
      * @param color 颜色（含 alpha；20% 黑 = {@code #33000000}）
      * @param fullColumnWidth {@code true} 用整列宽（和图标同宽），
      *     {@code false} 用**按钮们实际占据的范围**（默认，也就是「宽度覆盖按钮列」）
+     * @param padding 左右各留多少像素。**必须是正数**：按钮（{@code text} 外观）的宽度就是
+     *     文字的宽度，色带贴着文字边界会在视觉上「压住」两端，看着像被裁掉了一块
      */
-    public record Bar(int color, boolean fullColumnWidth) {}
+    public record Bar(int color, boolean fullColumnWidth, int padding) {}
 
     /** 尺寸/颜色用「未指定」哨兵值。0 也是合法颜色（全透明），因此颜色哨兵不能是 0。 */
     public static final int AUTO = -1;
@@ -137,6 +139,12 @@ public record MenuElement(
 
     /** 色带的默认颜色：20% 黑（能压住亮背景，又不至于把底图糊掉）。 */
     public static final int DEFAULT_BAR_COLOR = 0x33000000;
+
+    /** 色带左右默认留白（像素）。 */
+    public static final int DEFAULT_BAR_PADDING = 10;
+
+    /** 色带左右留白上限（像素）。 */
+    public static final int MAX_BAR_PADDING = 200;
 
     public MenuElement {
         type = type == null ? Type.BUTTON : type;

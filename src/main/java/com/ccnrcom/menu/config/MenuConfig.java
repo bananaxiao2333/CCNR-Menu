@@ -299,6 +299,11 @@ public record MenuConfig(
                 color = parsed;
             }
         }
+        int padding = (int) JsonUtil.num(bar, "padding", MenuElement.DEFAULT_BAR_PADDING);
+        if (padding < 0 || padding > MenuElement.MAX_BAR_PADDING) {
+            warnings.add(where + ".bar.padding 超出范围: " + padding + "（0~" + MenuElement.MAX_BAR_PADDING + "）→ 已收敛到边界");
+            padding = Math.max(0, Math.min(MenuElement.MAX_BAR_PADDING, padding));
+        }
         String raw = JsonUtil.str(bar, "width", "buttons");
         boolean columnWidth;
         if ("buttons".equalsIgnoreCase(raw)) {
@@ -309,7 +314,7 @@ public record MenuConfig(
             warnings.add(where + ".bar.width 不认识: '" + raw + "'（可用 buttons/column）→ 已用 buttons");
             columnWidth = false;
         }
-        return new MenuElement.Bar(color, columnWidth);
+        return new MenuElement.Bar(color, columnWidth, padding);
     }
 
     private static double fraction(JsonObject o, String key, double def, String where, List<String> warnings) {

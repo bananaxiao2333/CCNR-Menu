@@ -429,6 +429,112 @@ public final class MenuDefaults {
                   ]
                 }
                 """);
+        // 0.5.0：按钮列色带 + 标志改右下角（0.5.1 又挪回正中并改 30% 不透明）
+        map.put(
+                "0.5.0",
+                """
+                {
+                  "enabled": true,
+                  "vanillaButtons": false,
+                  "applyToAllScreens": true,
+                  "background": {
+                    "type": "slideshow",
+                    "fit": "cover",
+                    "tint": "#A6A6A6",
+                    "opacity": 1.0,
+                    "holdMs": 9000,
+                    "fadeMs": 1400,
+                    "zoom": 0.08,
+                    "panX": 0.05,
+                    "panY": 0.0,
+                    "loop": true,
+                    "slides": [
+                      "slides/01.jpg",
+                      "slides/02.jpg",
+                      "slides/03.jpg",
+                      "slides/04.jpg",
+                      "slides/05.jpg",
+                      "slides/06.jpg",
+                      "slides/07.jpg",
+                      "slides/08.jpg",
+                      "slides/09.jpg",
+                      "slides/10.jpg",
+                      "slides/11.jpg"
+                    ]
+                  },
+                  "mark": {
+                    "file": "logo_wide_mono.png",
+                    "width": 420,
+                    "opacity": 1.0,
+                    "x": 0.98,
+                    "y": 0.95,
+                    "align": "right",
+                    "valign": "bottom",
+                    "onMainMenu": false
+                  },
+                  "theme": {
+                    "buttonStyle": "text",
+                    "backdrop": "#4D000000",
+                    "buttonFill": "#B0121216",
+                    "buttonFillHover": "#D01E1E26",
+                    "buttonBorder": "#FF3C3C46",
+                    "buttonBorderHover": "#FF4FD1E0",
+                    "buttonText": "#FFFFFFFF",
+                    "buttonTextHover": "#FF4FD1E0",
+                    "accent": "#FF4FD1E0",
+                    "labelText": "#FFE6E6EE"
+                  },
+                  "elements": [
+                    {
+                      "type": "column",
+                      "x": 0.10,
+                      "y": 0.5,
+                      "align": "left",
+                      "valign": "middle",
+                      "width": 300,
+                      "gap": 10,
+                      "childAlign": "left",
+                      "bar": {
+                        "color": "#33000000",
+                        "width": "buttons"
+                      },
+                      "children": [
+                        {
+                          "type": "image",
+                          "file": "logo_wide_intro_mono.png",
+                          "width": 300,
+                          "animation": {
+                            "cols": 8,
+                            "rows": 10,
+                            "frameMs": 33,
+                            "loop": false
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "text": "进入服务器",
+                          "action": "screen:multiplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "单人游戏",
+                          "action": "screen:singleplayer"
+                        },
+                        {
+                          "type": "button",
+                          "text": "设置",
+                          "action": "screen:options"
+                        },
+                        {
+                          "type": "button",
+                          "text": "退出游戏",
+                          "action": "quit"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """);
         return java.util.Collections.unmodifiableMap(map);
     }
     /** 是否与某个历史默认配置**结构完全一致**（即玩家从未改过它）。 */
