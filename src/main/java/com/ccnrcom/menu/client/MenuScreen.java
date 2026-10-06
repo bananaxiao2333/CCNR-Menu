@@ -71,6 +71,8 @@ public final class MenuScreen extends Screen {
 
     private final List<PlacedLabel> labels = new ArrayList<>();
     private final List<PlacedImage> images = new ArrayList<>();
+    /** 列背后的色带（画在最前，于是图标与按钮都在它之上）。 */
+    private final List<PlacedBar> bars = new ArrayList<>();
     /** 元素图片的贴图（与 {@link #images} 同生命周期，随屏幕一起释放）。 */
     private final List<FileTexture> elementTextures = new ArrayList<>();
 
@@ -94,6 +96,7 @@ public final class MenuScreen extends Screen {
         // init() 会因窗口缩放重跑：旧一轮的几何与贴图必须先清掉
         labels.clear();
         images.clear();
+        bars.clear();
         releaseElementTextures();
 
         if (config.vanillaButtons()) {
@@ -236,11 +239,26 @@ public final class MenuScreen extends Screen {
     private void placeColumn(MenuElement column, MenuGeometry.Rect rect) {
         List<MenuElement> children = column.column().children();
         MenuGeometry.Stack stack = stackOf(column);
+        // 色带要盖住「按钮们实际占据的范围」，所以先摆一遍子元素、顺手把按钮的范围量出来
+        int buttonLeft = Integer.MAX_VALUE;
+        int buttonRight = Integer.MIN_VALUE;
         for (int i = 0; i < children.size(); i++) {
             MenuElement child = children.get(i);
             MenuGeometry.Rect childRect =
                     stack.childRects().get(i).translate(rect.x(), rect.y()).translate(child.offsetX(), child.offsetY());
+            if (child.type() == MenuElement.Type.BUTTON) {
+                buttonLeft = Math.min(buttonLeft, childRect.x());
+                buttonRight = Math.max(buttonRight, childRect.x2());
+            }
             place(child, childRect);
+        }
+        MenuElement.Bar bar = column.column().bar();
+        if (bar != null) {
+            boolean buttons = !bar.fullColumnWidth() && buttonLeft <= buttonRight;
+            int x = buttons ? buttonLeft : rect.x();
+            int w = buttons ? buttonRight - buttonLeft : stack.width();
+            // 满屏高：色带是「这一列在这儿」的视觉锚点，跟着列高走会随元素增减忽长忽短
+            bars.add(new PlacedBar(new MenuGeometry.Rect(x, 0, Math.max(1, w), this.height), bar.color()));
         }
     }
 
@@ -317,6 +335,9 @@ public final class MenuScreen extends Screen {
         // 背景与压暗层走共享入口（与其它界面同一份实现，避免两条渲染路径漂移）
         ScreenBackgrounds.render(gfx, this, MenuConfigStore.current().config(), true, partialTick);
 
+        for (PlacedBar bar : bars) {
+            gfx.fill(bar.rect().x(), bar.rect().y(), bar.rect().x2(), bar.rect().y2(), bar.color());
+        }
         for (PlacedImage image : images) {
             drawImage(gfx, image);
         }
@@ -412,6 +433,9 @@ public final class MenuScreen extends Screen {
     private static Component text(MenuElement element) {
         return element.isLangKey() ? Component.translatable(element.text()) : Component.literal(element.text());
     }
+
+    /** 已摆好位置的色带。 */
+    private record PlacedBar(MenuGeometry.Rect rect, int color) {}
 
     /** 已摆好位置的文字元素。 */
     private record PlacedLabel(MenuElement element, Component text, MenuGeometry.Rect rect) {}

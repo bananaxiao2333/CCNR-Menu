@@ -8,6 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.ccnrcom.menu.ui.Align;
+import com.ccnrcom.menu.ui.MenuGeometry;
+import com.ccnrcom.menu.ui.VAlign;
 import com.ccnrcom.menu.util.JsonUtil;
 import com.google.gson.JsonObject;
 import java.util.ArrayList;
@@ -187,6 +190,26 @@ class SlideSpecTest {
         MarkSpec mark = MarkSpec.parse(root("\"mark\": {\"file\": \"a.png\", \"width\": 99999}"), warnings);
         assertEquals(MarkSpec.AUTO, mark.width());
         assertEquals(1, warnings.size(), warnings.toString());
+    }
+
+    @Test
+    @DisplayName("标志：默认居中；写 align/valign 时 x/y 指的是标志的那条边（右下角水印靠它）")
+    void markAnchorIsConfigurable() {
+        MarkSpec centered = MarkSpec.parse(root("\"mark\": {\"file\": \"a.png\"}"), new ArrayList<>());
+        assertEquals(Align.CENTER, centered.align(), "不写就是居中（老配置行为不变）");
+        assertEquals(VAlign.MIDDLE, centered.valign());
+
+        MarkSpec corner = MarkSpec.parse(
+                root("\"mark\": {\"file\": \"a.png\", \"x\": 0.98, \"y\": 0.95,"
+                        + " \"align\": \"right\", \"valign\": \"bottom\"}"),
+                new ArrayList<>());
+        assertEquals(Align.RIGHT, corner.align());
+        assertEquals(VAlign.BOTTOM, corner.valign());
+        // 语义：place(x,y,RIGHT,BOTTOM) 把标志的右下角放在 (0.98W, 0.95H)，即右边距 2%、下边距 5%
+        MenuGeometry.Rect rect =
+                MenuGeometry.place(corner.x(), corner.y(), corner.align(), corner.valign(), 200, 50, 1000, 500);
+        assertEquals(980, rect.x2());
+        assertEquals(475, rect.y2());
     }
 
     @Test

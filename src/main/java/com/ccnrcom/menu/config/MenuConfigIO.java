@@ -172,18 +172,46 @@ public final class MenuConfigIO {
         return writeFromResource(DEFAULT_RESOURCE, file);
     }
 
-    /** 把内置素材拷进配置目录（已存在则跳过）。 */
+    /**
+     * 把内置素材拷进配置目录：**文件不存在**（首次释放）或**内容与内置的不同**（模组换了素材）时才写。
+     *
+     * <p>为什么「已存在就跳过」是错的：素材名字不变但内容换了（轮播换图、图标重渲染）时，
+     * 老玩家的配置目录里留着旧字节，于是**永远停在旧素材上**。0.4.1 就踩了这个坑——
+     * 作者要求删掉的那张轮播图仍然在转，而新补进来的那张根本没出现过。
+     * 判据用**内容**而不是 mtime：拷进来的文件时间戳不可靠。
+     *
+     * <p>覆盖前把旧文件备份成 {@code .bak}，所以「玩家自己替换过同名素材」不会真的丢东西。
+     * 只有 {@link #PRESET_FILES} 里的名字由模组管理，作者自己加的素材换个文件名即可
+     * （配置里的路径是任意的相对路径）。
+     */
     private static boolean copyPreset(String name) {
         Path target = configDir().resolve(name);
-        if (Files.isRegularFile(target)) return false;
         try (InputStream in = MenuConfigIO.class.getResourceAsStream(PRESET_RESOURCE_DIR + name)) {
             if (in == null) {
                 LOGGER.warn("[CCNR-Menu] 内置素材缺失，无法释放 {}（资源: {}）", name, PRESET_RESOURCE_DIR + name);
                 return false;
             }
+            byte[] shipped = in.readAllBytes();
+            boolean existed = Files.isRegularFile(target);
+            if (existed) {
+                if (java.util.Arrays.equals(Files.readAllBytes(target), shipped)) return false;
+                try {
+                    Files.copy(
+                            target,
+                            target.resolveSibling(target.getFileName() + ".bak"),
+                            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    LOGGER.warn("[CCNR-Menu] 备份旧素材失败，已跳过更新: {} —— {}", name, e.toString());
+                    return false;
+                }
+            }
             Files.createDirectories(target.getParent());
-            Files.copy(in, target);
-            LOGGER.info("[CCNR-Menu] 已释放内置素材 {}", target);
+            Files.write(target, shipped);
+            LOGGER.info(
+                    "[CCNR-Menu] {}内置素材 {}{}",
+                    existed ? "已更新" : "已释放",
+                    target,
+                    existed ? "（旧文件备份为 " + target.getFileName() + ".bak）" : "");
             return true;
         } catch (IOException e) {
             LOGGER.warn("[CCNR-Menu] 释放内置素材失败: {} —— {}", name, e.toString());

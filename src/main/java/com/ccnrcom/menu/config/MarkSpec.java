@@ -4,6 +4,8 @@
  */
 package com.ccnrcom.menu.config;
 
+import com.ccnrcom.menu.ui.Align;
+import com.ccnrcom.menu.ui.VAlign;
 import com.ccnrcom.menu.util.JsonUtil;
 import com.google.gson.JsonObject;
 import java.util.List;
@@ -27,21 +29,28 @@ import java.util.List;
  * @param opacity 不透明度 0..1
  * @param x 横向锚点分数 0..1（默认 0.5）
  * @param y 纵向锚点分数 0..1（默认 0.5）
+ * @param align {@code x} 指的是标志的哪一条边（默认 {@code center}）。
+ *     想放到右下角就写 {@code x: 0.98, y: 0.95, align: right, valign: bottom}——
+ *     这时候 {@code x}/{@code y} 是**标志自己的右/下边缘**，留出的余量才是「不贴边」的那个量
+ * @param valign {@code y} 指的是标志的哪一条边（默认 {@code middle}）
  * @param onMainMenu 是否也画在主菜单上
  */
-public record MarkSpec(String file, int width, float opacity, double x, double y, boolean onMainMenu) {
+public record MarkSpec(
+        String file, int width, float opacity, double x, double y, Align align, VAlign valign, boolean onMainMenu) {
 
     /** 宽度「未指定」。 */
     public static final int AUTO = -1;
 
     /** 没有标志（配置里没写 {@code mark}，或 {@code file} 为空）。 */
-    public static final MarkSpec NONE = new MarkSpec("", AUTO, 1f, 0.5, 0.5, false);
+    public static final MarkSpec NONE = new MarkSpec("", AUTO, 1f, 0.5, 0.5, Align.CENTER, VAlign.MIDDLE, false);
 
     public MarkSpec {
         file = file == null ? "" : file.trim();
         opacity = Math.min(1f, Math.max(0f, opacity));
         x = clamp(x, 0.0, 1.0);
         y = clamp(y, 0.0, 1.0);
+        align = align == null ? Align.CENTER : align;
+        valign = valign == null ? VAlign.MIDDLE : valign;
     }
 
     /** 是否配置了一个要画的标志。 */
@@ -71,6 +80,8 @@ public record MarkSpec(String file, int width, float opacity, double x, double y
                 (float) clamp(JsonUtil.dbl(o, "opacity", 1.0), 0.0, 1.0),
                 JsonUtil.dbl(o, "x", 0.5),
                 JsonUtil.dbl(o, "y", 0.5),
+                Align.parse(JsonUtil.str(o, "align", "center")),
+                VAlign.parse(JsonUtil.str(o, "valign", "middle")),
                 JsonUtil.bool(o, "onMainMenu", false));
     }
 

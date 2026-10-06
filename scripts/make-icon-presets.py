@@ -99,6 +99,10 @@ FRAMES = COLS * ROWS
 INTRO_SECONDS = 2.60
 STATIC_W, STATIC_H = 1536, 512
 
+# 判定「这个像素算不算内容」的 alpha 阈值。SVG 的抗锯齿会在图形外侧留一圈极淡的像素
+# （alpha 1~5），按 >0 裁会把边距留得多几个像素；8 足够滤掉那圈毛边又不切到实体边缘。
+ALPHA_THRESHOLD = 8
+
 # 主题变量在 SVG 的 <style> 里：#ccnrLogo.theme-dark 定义浅色图形 + 品牌青强调色。
 # `mono` 不是源文件里已有的主题，而是本脚本注入的一条规则（源文件只读，不改）。
 THEME_DARK_RULE = "#ccnrLogo.theme-dark  { --ccnr-ink: #E6EDF3; --ccnr-accent: #4FD1E0; }"
@@ -286,6 +290,37 @@ def inject_mono_rule(svg):
     return svg.replace(THEME_DARK_RULE, THEME_DARK_RULE + "\n" + MONO_RULE, 1)
 
 
+def content_box(px, w, h, box=None):
+    """透明边距之外的内容包围盒 ``(x0, y0, x1, y1)``（含边界）。
+
+    画板是 3:1，而图形本身约 4.25:1，所以左右各有 ~9%、上下各有 ~21% 是**纯透明**的。
+    不裁掉的话菜单里看到的「图标」有二成高度是在占位——作者的原话是「两边的空位」。
+    """
+    x0, y0, x1, y1 = (0, 0, w - 1, h - 1) if box is None else box
+    rx0, ry0, rx1, ry1 = w, h, -1, -1
+    for y in range(y0, y1 + 1):
+        row = px[y]
+        for x in range(x0, x1 + 1):
+            if row[x][3] > ALPHA_THRESHOLD:
+                if x < rx0:
+                    rx0 = x
+                if x > rx1:
+                    rx1 = x
+                if y < ry0:
+                    ry0 = y
+                if y > ry1:
+                    ry1 = y
+    if rx1 < rx0 or ry1 < ry0:
+        sys.exit("图标渲染结果全透明——源 SVG 或主题注入有问题，拒绝产出一张空图")
+    return rx0, ry0, rx1, ry1
+
+
+def crop(px, box):
+    """按包围盒裁一块出来（返回新的行列表）。"""
+    x0, y0, x1, y1 = box
+    return [row[x0 : x1 + 1] for row in px[y0 : y1 + 1]]
+
+
 def main():
     if "--only-slides" in sys.argv:
         render_slides()
@@ -306,29 +341,46 @@ def main():
     # 两套配色：theme-dark = 浅色图形 + 品牌青（配深色背景）；theme-mono = 全白单色
     themes = (("theme-dark", "white"), ("theme-mono", "mono"))
 
-    # 1) 静态横版图标
+    # 1) 静态横版图标（裁掉透明边距，裁剪量由渲染结果量出来，不写死）
     for theme, name in themes:
         print(f"渲染静态横版图标（{name}）...")
         png = shoot(with_theme(scale_attr(animated, STATIC_W, STATIC_H), theme),
                     STATIC_W, STATIC_H, 99.0, f"static_{name}")
-        shutil.copyfile(png, os.path.join(OUT, f"logo_wide_{name}.png"))
-        print(f"  wrote presets/logo_wide_{name}.png  {STATIC_W}x{STATIC_H}")
+        w, h, px = read_png(png)
+        box = content_box(px, w, h)
+        cropped = crop(px, box)
+        cw, ch = len(cropped[0]), len(cropped)
+        write_png(os.path.join(OUT, f"logo_wide_{name}.png"), cw, ch, cropped)
+        print(f"    裁掉透明边距 {box}：{w}x{h} → {cw}x{ch}")
 
-    # 2) 入场动画精灵图：按 INTRO_SECONDS 均匀取 FRAMES 帧，最后一帧即静止态
+    # 2) 入场动画精灵图：按 INTRO_SECONDS 均匀取 FRAMES 帧，最后一帧即静止态。
+    #    裁剪用**所有帧的并集**包围盒：逐帧各裁各的会让每一帧的内容落在不同位置，
+    #    播起来是「一边缩放一边平移」，而不是原地做动画。
     for theme, name in themes:
         print(f"渲染 {name} 入场动画 {FRAMES} 帧（{COLS}x{ROWS}，每帧 {FRAME_W}x{FRAME_H}）...")
-        sheet = [[(0, 0, 0, 0) for _ in range(COLS * FRAME_W)] for _ in range(ROWS * FRAME_H)]
+        frames = []
+        union = None
         for i in range(FRAMES):
             seconds = round(i * INTRO_SECONDS / FRAMES, 4)
             frame_png = shoot(with_theme(scale_attr(animated, FRAME_W, FRAME_H), theme),
                               FRAME_W, FRAME_H, seconds, f"intro_{name}{i:02d}")
             w, h, px = read_png(frame_png)
             assert (w, h) == (FRAME_W, FRAME_H), f"帧尺寸异常 {w}x{h}"
-            ox, oy = (i % COLS) * FRAME_W, (i // COLS) * FRAME_H
-            for y in range(h):
-                sheet[oy + y][ox : ox + w] = px[y]
-            print(f"  {name} 帧 {i + 1}/{FRAMES}  t={seconds}s")
-        write_png(os.path.join(OUT, f"logo_wide_intro_{name}.png"), COLS * FRAME_W, ROWS * FRAME_H, sheet)
+            frames.append(px)
+            box = content_box(px, w, h)
+            union = box if union is None else (
+                min(union[0], box[0]), min(union[1], box[1]),
+                max(union[2], box[2]), max(union[3], box[3]))
+            print(f"  {name} 帧 {i + 1}/{FRAMES}  t={seconds}s  内容 {box}")
+        fw, fh = union[2] - union[0] + 1, union[3] - union[1] + 1
+        sheet = [[(0, 0, 0, 0) for _ in range(COLS * fw)] for _ in range(ROWS * fh)]
+        for i, px in enumerate(frames):
+            cut = crop(px, union)
+            ox, oy = (i % COLS) * fw, (i // COLS) * fh
+            for y in range(fh):
+                sheet[oy + y][ox : ox + fw] = cut[y]
+        write_png(os.path.join(OUT, f"logo_wide_intro_{name}.png"), COLS * fw, ROWS * fh, sheet)
+        print(f"    每帧 {FRAME_W}x{FRAME_H} → {fw}x{fh}（裁剪并集 {union}），整图 {COLS * fw}x{ROWS * fh}")
 
     # 3) 背景图原样拷贝（1920x1080；不重编码，避免二次压缩）
     shutil.copyfile(bg_path, os.path.join(OUT, "background.png"))
@@ -337,7 +389,7 @@ def main():
     # 4) 轮播图：压到 1920 宽 + JPEG
     render_slides()
 
-    print("\n完成。模组首次启动会把这些文件拷进 config/ccnr_menu/（已存在则不覆盖）。")
+    print("\n完成。模组启动时会把这些文件按内容同步到 config/ccnr_menu/（内容不同的会被更新，旧文件留 .bak）。")
 
 
 def slide_sources():
