@@ -1,0 +1,8 @@
+{
+  "ccnr_menu.screen.title": "CCNR Main Menu",
+  "ccnr_menu.command.reloaded": "Menu config reloaded: background %s, %s warning(s) — see /ccnr_menu status",
+  "ccnr_menu.command.status.header": "=== CCNR-Menu status ===",
+  "ccnr_menu.command.status.no_warnings": "  No config warnings.",
+  "ccnr_menu.command.status.warnings": "  %s config warning(s):",
+  "ccnr_menu.example.subtitle": "Survival · Story · Tactics"
+}

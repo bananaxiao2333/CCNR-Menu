@@ -1,0 +1,30 @@
+# ---- Gradle ----
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ---- 开发环境运行目录（含日志、本体配置、玩家导入的背景文件）----
+run/
+logs/
+release/
+
+# ---- 共享 Gradle 缓存惯例目录 ----
+.gradle-home/
+
+# ---- Python（scripts/ 里的素材生成脚本）----
+__pycache__/
+*.pyc
+
+# ---- IDE ----
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# ---- 操作系统 ----
+.DS_Store
+Thumbs.db
