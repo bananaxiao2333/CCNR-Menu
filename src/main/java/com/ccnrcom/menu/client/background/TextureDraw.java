@@ -8,6 +8,7 @@ import com.ccnrcom.menu.ui.ColorSpec;
 import com.ccnrcom.menu.ui.Fit;
 import com.ccnrcom.menu.ui.MenuGeometry;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
@@ -127,6 +128,50 @@ public final class TextureDraw {
             blit(gfx, location, src, dst, textureWidth, textureHeight);
         } finally {
             // 必须复位：setColor 是全局状态，忘了复位会让**之后所有**的界面绘制都带上这层颜色
+            gfx.setColor(1f, 1f, 1f, 1f);
+        }
+    }
+
+    /**
+     * 与 {@link #drawAt} 相同，但目标矩形是**浮点**的（轮播的运镜走这条）。
+     *
+     * <p>为什么必须绕一圈用变换矩阵：{@code GuiGraphics.blit} 只吃整数位置与整数尺寸，
+     * 直接取整就等于把「每秒 10 像素的位移」量化成「每 5 帧跳 1 像素」——画面对，但一卡一卡的。
+     * GUI 顶点本身是浮点（走 {@code PoseStack} 的矩阵），所以把小数部分交给矩阵即可：
+     * 位置用「整数基准 + 小数平移」，尺寸用一次近似 1 的缩放补齐。
+     *
+     * <p>另一处配套改动在贴图侧：慢速位移必须配**线性过滤**（{@code FileTexture.smooth}）。
+     * 最近邻采样会把亚像素位移重新吸附回整像素，等于白做。
+     */
+    public static void drawAtF(
+            GuiGraphics gfx,
+            ResourceLocation location,
+            MenuGeometry.Rect src,
+            MenuGeometry.FRect dst,
+            int textureWidth,
+            int textureHeight,
+            int tint,
+            float alpha) {
+        if (location == null || src == null || dst == null || src.w() <= 0 || src.h() <= 0) return;
+        if (dst.w() <= 0f || dst.h() <= 0f) return;
+        float a = Math.min(1f, Math.max(0f, alpha)) * ColorSpec.alphaF(tint);
+        if (a <= 0f) return;
+
+        int baseX = (int) Math.floor(dst.x());
+        int baseY = (int) Math.floor(dst.y());
+        int intW = Math.max(1, Math.round(dst.w()));
+        int intH = Math.max(1, Math.round(dst.h()));
+
+        RenderSystem.enableBlend();
+        gfx.setColor(ColorSpec.redF(tint), ColorSpec.greenF(tint), ColorSpec.blueF(tint), a);
+        PoseStack pose = gfx.pose();
+        pose.pushPose();
+        try {
+            pose.translate(baseX + (dst.x() - baseX), baseY + (dst.y() - baseY), 0f);
+            pose.scale(dst.w() / intW, dst.h() / intH, 1f);
+            blit(gfx, location, src, new MenuGeometry.Rect(0, 0, intW, intH), textureWidth, textureHeight);
+        } finally {
+            pose.popPose();
             gfx.setColor(1f, 1f, 1f, 1f);
         }
     }

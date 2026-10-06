@@ -137,9 +137,9 @@ public final class SlideshowBackground implements BackgroundRenderer {
         MenuGeometry.Rect src = new MenuGeometry.Rect(0, 0, texture.width(), texture.height());
         MenuGeometry.Rect base =
                 MenuGeometry.fit(spec.fit(), texture.width(), texture.height(), screenWidth, screenHeight);
-        MenuGeometry.Rect dst = MenuGeometry.kenBurns(
+        MenuGeometry.FRect dst = MenuGeometry.kenBurnsF(
                 base, slide.zoom(), slide.panX(), slide.panY(), progress, screenWidth, screenHeight);
-        TextureDraw.drawAt(
+        TextureDraw.drawAtF(
                 gfx,
                 texture.location(),
                 src,
@@ -170,7 +170,9 @@ public final class SlideshowBackground implements BackgroundRenderer {
         try {
             Path file = resolve(index);
             if (file == null) return;
-            textures.put(index, FileTexture.load(file, FileTexture.keyFor(file, MenuConfigIO.lastModified(file))));
+            FileTexture texture = FileTexture.load(file, FileTexture.keyFor(file, MenuConfigIO.lastModified(file)));
+            texture.smooth();
+            textures.put(index, texture);
         } catch (Exception e) {
             failed.add(index);
             LOGGER.warn("[CCNR-Menu] 轮播素材加载失败，已跳过这一张: {} —— {}", slides.get(index), e.toString());
@@ -227,7 +229,10 @@ public final class SlideshowBackground implements BackgroundRenderer {
             return;
         }
         try {
-            textures.put(index, FileTexture.fromImage(image, key));
+            FileTexture texture = FileTexture.fromImage(image, key);
+            // 线性过滤必须在**上传之后**设置：慢速运镜依赖它（见 FileTexture.smooth 的说明）
+            texture.smooth();
+            textures.put(index, texture);
         } catch (Exception e) {
             // fromImage 失败时像素的所有权还在我们手上
             image.close();

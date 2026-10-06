@@ -48,6 +48,13 @@ class MenuDefaultsTest {
     }
 
     @Test
+    @DisplayName("0.4.0 那份「6 张轮播」默认也要被识别（否则 0.4.0 用户拿不到新的 11 张轮播）")
+    void detectsLegacyDefaultOf040() {
+        assertTrue(
+                MenuDefaults.isLegacyUnmodified(diskDefaultFrom("0.4.0")), "0.4.0 的默认配置必须留在清单里：轮播素材换代时，老玩家才会被迁移到新的图集");
+    }
+
+    @Test
     @DisplayName("格式不同但结构相同也算未修改（玩家可能重排过缩进/键顺序）")
     void structureComparisonIgnoresFormatting() {
         assertTrue(MenuDefaults.isLegacyUnmodified(

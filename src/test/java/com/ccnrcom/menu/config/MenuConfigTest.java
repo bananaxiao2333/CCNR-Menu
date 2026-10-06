@@ -56,7 +56,7 @@ class MenuConfigTest {
 
         // 背景：多图轮播，淡入淡出 + 缓慢推近 + 向右偏移
         assertEquals(BackgroundSpec.Kind.SLIDESHOW, config.background().kind(), "默认背景是图片轮播");
-        assertEquals(6, config.background().slides().size(), "默认六张轮播图");
+        assertEquals(11, config.background().slides().size(), "默认十一张轮播图（5 张第一批 + 6 张第二批）");
         assertFalse(config.background().slides().contains(""), "轮播列表里不该有空项");
         SlideSpec slide = config.background().slide();
         assertTrue(slide.fadeMs() > 0, "切换必须是淡入淡出（fadeMs = 0 就是硬切）");
@@ -64,7 +64,7 @@ class MenuConfigTest {
         assertTrue(slide.zoom() > 0f, "每张图要放大一点点");
         assertTrue(slide.panX() > 0f, "每张图要缓慢往右偏移");
         assertTrue(slide.loop(), "轮播默认循环");
-        assertEquals(6, config.background().assetFiles().size(), "轮播的素材清单要带上每一张（门禁与诊断都靠它）");
+        assertEquals(11, config.background().assetFiles().size(), "轮播的素材清单要带上每一张（门禁与诊断都靠它）");
 
         // 泥土页面上的居中标志
         MarkSpec mark = config.mark();

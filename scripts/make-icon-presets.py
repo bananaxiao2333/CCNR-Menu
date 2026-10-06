@@ -5,7 +5,8 @@
   /Users/bananaxiao/Documents/MirageV/CCNR图标/
     ├── CCNR图标_H-IMGnTXT横版图标文字_动画版.svg   ← 横版图标 + 入场动画（CSS @keyframes）
     └── CCNR背景.png                                ← 1920x1080 背景
-  ~/Downloads/Image_*.png                           ← 轮播用的照片（可选，见下）
+  ~/Downloads/Image_*.png                           ← 第一批轮播图（5 张，可选，见下）
+  ~/Downloads/QQ图片*.png                           ← 第二批轮播图（6 张，1544x800）
 
 产出（两套配色）：
   logo_wide_white.png        横版图标静态图（浅色图形 + 品牌青描边，配深色背景）
@@ -13,17 +14,19 @@
   logo_wide_mono.png         横版图标静态图（**全白单色**）
   logo_wide_intro_mono.png   入场动画精灵图（全白单色，同上网格）
   background.png             背景图（原样拷贝）
-  slides/01.jpg …            轮播图（压到 1920 宽、JPEG，见下）
+  slides/01.jpg …            轮播图（压到 1920 宽、JPEG，编号即轮播顺序，见下）
 
 `mono` 是什么：把 SVG 里的两个主题变量 `--ccnr-ink` 与 `--ccnr-accent` **同时覆写成 #FFFFFF**，
 于是整枚图标只剩一种颜色，只有透明度在塑形。
 
-轮播图为什么要压：原始 PNG 是 1920x1009 / 2560x1440 的照片，单张 3~5MB、六张共 20MB。
-压成 1920 宽的 JPEG（质量 82）后单张 300~500KB，画质在菜单背景上看不出差别，
+轮播图为什么要压：原始 PNG 是 1920x1009 / 2560x1440 / 1544x800 的照片，单张 0.4~5MB。
+压成 1920 宽的 JPEG（质量 82）后单张 150~500KB，画质在菜单背景上看不出差别，
 而 jar 从 25MB 降到 5MB 左右。**必须用 macOS 自带的 `sips`**（脚本本来就已经是 macOS-only：
 无头 Chrome 的路径是写死的）。
 轮播图是可选的：`SLIDE_SRC_DIR` 里没有匹配文件时脚本会跳过这一步并说明
 （素材仍在，只是本机没有源图）。
+轮播图的顺序 = 编号顺序 = 「先 Image_ 后 QQ图片」两组各自按文件名排序，
+不在 `SLIDE_EXCLUDE` 里的源图全都要用——顺序变了就是轮播顺序变了，别靠感觉调。
 
 帧率：80 帧 / 2.6s ≈ 30fps。此前是 32 帧 ≈ 12.3fps，入场那几下快动作（pop/draw）能看出顿。
 网格受贴图边长 4096 限制：每帧 512 宽 → 最多 8 列；行数取 10 行 = 4096x1710（约 28MB 显存）。
@@ -51,7 +54,26 @@ import zlib
 HOME = os.path.expanduser("~")
 SRC = os.environ.get("CCNR_ICON_DIR", os.path.join(HOME, "Documents/MirageV/CCNR图标"))
 SLIDE_SRC = os.environ.get("CCNR_SLIDE_DIR", os.path.join(HOME, "Downloads"))
-SLIDE_PREFIX = "Image_"
+# 轮播源图清单：**编号即轮播顺序**，完全由这张清单决定。
+#
+# 为什么写死清单、而不是「扫描 Downloads 里所有 Image_*.png / QQ图片*.png」：那个目录随时
+# 会有别的图（实测就有 4 张 8 月的 QQ图片 躺在里面），一条 glob 会把不相干的图悄悄塞进轮播，
+# 而且编号还会跟着文件名排序变化。清单里缺文件时脚本直接报错退出，不做「少一张也照跑」。
+SLIDE_SOURCES = (
+    # 第一批：5 张照片（1920x1009 / 2560x1440）。同批的 Image_1785617587233 作者要求删掉，故不在列
+    "Image_1774022621366.png",
+    "Image_1774022623308.png",
+    "Image_1774022625319.png",
+    "Image_1774022627826.png",
+    "Image_1774094441214.png",
+    # 第二批：6 张 1544x800
+    "QQ图片20261007023410.png",
+    "QQ图片20261007023417(2).png",
+    "QQ图片20261007023422(4).png",
+    "QQ图片20261007023426(5).png",
+    "QQ图片20261007023432(7).png",
+    "QQ图片20261007023446(10).png",
+)
 SLIDE_MAX_WIDTH = 1920
 SLIDE_QUALITY = 82
 SIPS = "/usr/bin/sips"
@@ -318,18 +340,24 @@ def main():
     print("\n完成。模组首次启动会把这些文件拷进 config/ccnr_menu/（已存在则不覆盖）。")
 
 
+def slide_sources():
+    """清单里的轮播源图（绝对路径）。缺一张就报错退出：不做「少一张也照跑」的降级。"""
+    paths = [os.path.join(SLIDE_SRC, n) for n in SLIDE_SOURCES]
+    missing = [p for p in paths if not os.path.isfile(p)]
+    if missing:
+        sys.exit("轮播源图缺失（把文件放回 %s，或改脚本里的 SLIDE_SOURCES）：\n  %s"
+                 % (SLIDE_SRC, "\n  ".join(missing)))
+    return paths
+
+
 def render_slides():
-    """把 ~/Downloads/Image_*.png 压成 1920 宽的 JPEG 放进 presets/slides/。"""
+    """把轮播源图压到 1920 宽、转成 JPEG 放进 presets/slides/（编号 = 清单顺序 = 轮播顺序）。"""
     if not os.path.isdir(SLIDE_SRC):
         print(f"\n跳过轮播图：源目录不存在 {SLIDE_SRC}（可用 CCNR_SLIDE_DIR 指定）")
         return
-    sources = sorted(
-        os.path.join(SLIDE_SRC, n)
-        for n in os.listdir(SLIDE_SRC)
-        if n.startswith(SLIDE_PREFIX) and n.lower().endswith(".png")
-    )
+    sources = slide_sources()
     if not sources:
-        print(f"\n跳过轮播图：{SLIDE_SRC} 里没有 {SLIDE_PREFIX}*.png")
+        print("\n跳过轮播图：SLIDE_SOURCES 是空的")
         return
     if not os.path.isfile(SIPS):
         sys.exit(f"找不到 sips：{SIPS}（压缩轮播图需要 macOS 自带的 sips）")

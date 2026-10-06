@@ -37,7 +37,8 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
   （`TitleScreenHook`）。不写 mixin 是刻意的——它少一类「开发环境正常、打包后静默失效」的故障，
   也不会与别人对 `TitleScreen` 的 mixin 打架。
 - **背景有两个绘制点、一份实现**：`MenuScreen.render`（自己的菜单）与
-  `ScreenBackgroundHook`（`ScreenEvent.BackgroundRendered`，原版泥土界面）。
+  `ScreenBackgroundHook`（`ScreenEvent.Init.Post` → 挂一件 `ScreenBackgroundRenderable`，
+  原版泥土界面）。
   两者都调 `ScreenBackgrounds.render(...)`，范围判定都走纯类 `BackgroundScope`。
   背景实例按「参数 + 素材修改时间」的指纹共享，**进入世界**时释放。
 - 包布局与数据流见 [docs/00](docs/00-总览.md) §3/§4；背景方案取舍见 [docs/02](docs/02-背景与动画.md)；
@@ -91,8 +92,9 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
   代码与内置配置里出现的键名并要求两个语言包都有。
 - **`MenuAction.SCREENS` 与 `MenuActions.screenFor` 必须同步**：两处都不编译失败，
   `MenuScreenMappingTest` 是唯一的守卫。
-- **`ScreenEvent.BackgroundRendered` 在原版画完之后才发**：拿到事件时屏幕上是泥土图，
-  我们**盖上去**即可（不需要 mixin 去拦原版方法）。它的 `getGuiGraphics()` 才是画布。
+- **原版界面的背景不靠事件、靠那件 Renderable**：`ScreenEvent.BackgroundRendered` 理论上
+  在原版画完之后才发、盖上去即可，但实测对所有二级界面都不生效；现在的注入点见下面那条
+  「原版界面的背景注入点」。不要因为「事件更正统」就把 Renderable 那条删掉。
 - **世界内的界面永不接管背景**：`BackgroundScope` 里那条 `inWorld` 判据不能删——
   否则开背包时动画背景会盖住世界（`BackgroundScopeTest` 专门守着这一条）。
 - **容器子元素的 `x`/`y` 不生效**：位置由 `MenuGeometry.stack` 决定，只有 `offsetX`/`offsetY` 还有效。
@@ -104,10 +106,10 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
   跑一轮约 6~10 分钟，放后台跑）。
   改了生成脚本就要重跑并提交产物，`PresetAssetsTest` 会把「配置引用」与「磁盘文件」双向对齐。
 - **轮播背景（`type: "slideshow"`）的时刻表在纯类 `ui/SlideTimeline`，运镜几何在
-  `MenuGeometry.kenBurns`**。三条不能破的约束：
+  `MenuGeometry.kenBurnsF`**。三条不能破的约束：
   ① **周期边界上进度必须接得上**（`incomingProgress` 在淡入末尾 == 下一张成为主角时的
   `progress`），否则换图那一帧画面会猛地缩一下——`SlideTimelineTest` 专门守着这一条；
-  ② **只保留「当前 + 下一张」两张贴图**，切换完成后立刻释放其余（6 张 1080p 贴图 = 50MB 显存）；
+  ② **只保留「当前 + 下一张」两张贴图**，切换完成后立刻释放其余（11 张 1080p 贴图 = 90MB 显存）；
   ③ **下一张要提前一个周期异步解码**，否则解码那几十毫秒正好落在切图那一帧上，肉眼可见。
   线程边界与 GIF 一致：工作线程只调 `FileTexture.decodeFile`（纯计算），
   `FileTexture.fromImage` 必须回渲染线程。
@@ -130,9 +132,25 @@ export GRADLE_USER_HOME=/Users/bananaxiao/Documents/MirageV/mod/CCNR-Com/.gradle
 - **`MenuConfigIO.PRESET_FILES` 是发布的素材清单**：新素材必须同时出现在清单与资源目录里，
   否则玩家拿不到（或首次启动就报缺失）。它可以含子目录（`slides/01.jpg`），
   清单与磁盘的比对是**递归**的（`filesOnDisk` 用相对路径）。
-- **轮播素材是压过的，不是原图**：`~/Downloads/Image_*.png` 由生成脚本用 `sips` 压成
-  1920 宽的 JPEG（六张 20MB → 1.6MB）。只换照片时跑 `--only-slides`，
-  不要重跑整条脚本（162 次无头 Chrome 截图，6~10 分钟）。
+- **轮播素材是压过的，不是原图**：源图由生成脚本用 `sips` 压成 1920 宽的 JPEG
+  （11 张 → 2.7MB）。源图清单**写死在 `SLIDE_SOURCES`**，编号即轮播顺序——
+  不要改成「扫目录里所有匹配前缀的文件」：实测会把 4 张无关的图一起卷进来，编号还会随排序漂。
+  只换照片时跑 `--only-slides`，不要重跑整条脚本（162 次无头 Chrome 截图，6~10 分钟）。
+- **慢速运动必须同时满足两件事，缺一个就是「画面在动但一直在抖」**：
+  ① **几何不能取整**——运镜走 `MenuGeometry.kenBurnsF`（浮点），把小数部分交给
+  `TextureDraw.drawAtF` 里的 `PoseStack`；默认参数下单帧位移只有 0.03 像素，取整就等于
+  「每十几帧跳 1 GUI 单位」（GUI scale 2 时一跳 2 物理像素，肉眼极明显）。
+  `MenuGeometryTest.kenBurnsIsSubPixel` 守着这条。
+  ② **贴图必须是线性过滤**——`DynamicTexture` 默认最近邻，会把亚像素位移重新吸附回整像素；
+  轮播贴图建好后要调 `FileTexture.smooth()`（不开 mipmap：`DynamicTexture` 只分配了第 0 级）。
+  改这两处时别只看「位置算对了」，算对了也一样抖。
+- **原版界面的背景注入点是 `ScreenEvent.Init.Post` + `screen.renderables.add(0, ...)`**
+  （`ScreenBackgroundRenderable`），不是 `ScreenEvent.BackgroundRendered`：后者实测对所有二级界面
+  都不生效（日志无错、事件也确实会被原版 `renderDirtBackground()` 发出）。位置必须是下标 0——
+  原版顺序是「`renderBackground()` 画泥土 → 原版控件遍历 renderables」，插到末尾会盖住所有控件。
+  `init()` 会清空 `renderables`，所以每次重建界面都要重新挂。`ScreenBackgroundHook` 对每种界面
+  打一行 INFO（`已接管界面背景` / `未接管界面背景（原因）`）——这是「泥土没被换掉」唯一能自查的
+  线索，别把那一行删了。
 - **背景指纹（`ScreenBackgrounds.signatureOf`）必须覆盖所有影响画面的输入**：背景参数
   （含 `slides` 与 `SlideSpec`）、**每一个**素材文件的 mtime（走 `assetFiles()`，轮播要逐张带上）、
   `config.theme()`（压暗层跟着它走）、以及 `config.mark()`（标志的贴图归同一个实例持有）。

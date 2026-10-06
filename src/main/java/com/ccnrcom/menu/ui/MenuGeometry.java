@@ -36,6 +36,15 @@ public final class MenuGeometry {
         }
     }
 
+    /**
+     * 浮点矩形（左上角 + 宽高）。
+     *
+     * <p>为什么运镜不能复用 {@link Rect}：GUI 顶点本来就是浮点，把它取整会让「每秒移动 10 像素」
+     * 变成「每 5 帧跳 1 像素」——那是一种肉眼非常明显的 10Hz 抖动，而平均速度又是对的，
+     * 所以看起来「画面确实在动，但一卡一卡的」。慢速位移必须保留小数部分。
+     */
+    public record FRect(float x, float y, float w, float h) {}
+
     /** 纯尺寸（量出来的或配置写死的），用于竖列排布。 */
     public record Size(int w, int h) {
 
@@ -181,23 +190,26 @@ public final class MenuGeometry {
      * 偏移量按屏幕尺寸的分数算而不是按图片像素算：这样同一份配置在 1080p 与 1440p 上
      * 观感一致——作者调的是「大概移动屏幕宽度的 5%」，不是一个跟分辨率绑死的像素数。
      *
+     * <p>返回**浮点**矩形，调用方必须把小数部分交给变换矩阵（见 {@code TextureDraw.drawAtF}）。
+     * 取整的版本在默认参数下的步进是 0.18 像素/帧，也就是每 5.6 帧跳一整像素 = 约 11Hz 的抖动。
+     *
      * @param base {@link #fit} 的结果（未运镜时的目标矩形）
      * @param zoom 放大比例（{@code 0.08} = 1.08 倍）
      * @param panX 向右偏移的比例（相对屏幕宽）
      * @param panY 向下偏移的比例（相对屏幕高）
      * @param progress 这张图自己的进度 0..1（0 = 刚出现，1 = 该切走了）
      */
-    public static Rect kenBurns(
+    public static FRect kenBurnsF(
             Rect base, float zoom, float panX, float panY, float progress, int screenW, int screenH) {
-        if (base == null) return new Rect(0, 0, 0, 0);
+        if (base == null) return new FRect(0f, 0f, 0f, 0f);
         float p = Float.isNaN(progress) ? 0f : Math.min(1f, Math.max(0f, progress));
         float factor = 1f + Math.max(0f, zoom) * p;
-        int w = Math.max(1, Math.round(base.w() * factor));
-        int h = Math.max(1, Math.round(base.h() * factor));
+        float w = Math.max(1f, base.w() * factor);
+        float h = Math.max(1f, base.h() * factor);
         // 围绕中心放大：多出来的部分两边各分一半，画面中心才不会跑
-        int dx = -(w - base.w()) / 2 + Math.round(panX * screenW * p);
-        int dy = -(h - base.h()) / 2 + Math.round(panY * screenH * p);
-        return new Rect(base.x() + dx, base.y() + dy, w, h);
+        float dx = -(w - base.w()) / 2f + panX * screenW * p;
+        float dy = -(h - base.h()) / 2f + panY * screenH * p;
+        return new FRect(base.x() + dx, base.y() + dy, w, h);
     }
 
     /** 平铺模式需要的重复次数（含不完整的那一次）。 */
